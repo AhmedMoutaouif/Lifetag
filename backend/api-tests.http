@@ -1,0 +1,61 @@
+### Variable pour l'URL de base
+@baseUrl = http://localhost:5000/api
+
+### 1. Inscription d'un utilisateur
+# @name register
+POST {{baseUrl}}/register
+Content-Type: application/json
+
+{
+  "name": "Jean Dupont",
+  "email": "jean@exemple.com",
+  "password": "password123"
+}
+
+### 2. Connexion (Login)
+# @name login
+POST {{baseUrl}}/login
+Content-Type: application/json
+
+{
+  "email": "jean@exemple.com",
+  "password": "password123"
+}
+
+### (Récupérez le token depuis la réponse précédente et collez-le ici pour la suite)
+@token = {{login.response.body.token}}
+
+### 3. Sauvegarder les données médicales
+POST {{baseUrl}}/medical
+Content-Type: application/json
+Authorization: Bearer {{token}}
+
+{
+  "allergies": "Pénicilline, Arachides",
+  "maladies": "Asthme",
+  "medicaments": "Ventoline",
+  "bloodGroup": "O+"
+}
+
+### 4. Demander une carte QR
+# @name requestCard
+POST {{baseUrl}}/request
+Content-Type: application/json
+Authorization: Bearer {{token}}
+
+{}
+
+### 5. Administration : Valider et Générer le QR Code
+# Note : Normalement, ce endpoint nécessite un role "admin".
+# Assurez-vous d'avoir modifié un compte en admin dans la DB si besoin.
+POST {{baseUrl}}/qr
+Content-Type: application/json
+Authorization: Bearer {{token}}
+
+{
+  "cardId": 1,
+  "qrCodeValue": "LIFETAG_QR_12345"
+}
+
+### 6. Mode urgence : Scanner le QR/ID
+GET {{baseUrl}}/emergency/LIFETAG_QR_12345

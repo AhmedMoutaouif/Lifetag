@@ -1,0 +1,34 @@
+# Déploiement local / VPS : API + PostgreSQL persistant
+# 1. Copier .env.deploy.example vers .env.deploy et remplir les valeurs
+# 2. docker compose --env-file .env.deploy up -d --build
+#
+# Frontend : build statique (npm run build dans frontend/) puis héberger
+# sur Netlify, Vercel, Cloudflare Pages, ou Nginx avec les variables
+# VITE_API_URL et VITE_PUBLIC_APP_URL pointant vers cette API.
+
+services:
+  db:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB:-lifetag}
+      POSTGRES_USER: ${POSTGRES_USER:-lifetag}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-change_me}
+    volumes:
+      - lifetag_pgdata:/var/lib/postgresql/data
+    restart: unless-stopped
+
+  api:
+    build: ./backend
+    ports:
+      - "${HOST_PORT:-5000}:5000"
+    depends_on:
+      - db
+    env_file:
+      - .env.deploy
+    environment:
+      DATABASE_URL: ${DATABASE_URL}
+      NODE_ENV: production
+    restart: unless-stopped
+
+volumes:
+  lifetag_pgdata:

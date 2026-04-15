@@ -1,0 +1,212 @@
+{
+    "logout": "Déconnexion",
+        "nav": {
+        "home": "Accueil",
+        "contact": "Contact",
+        "dashboard": "Tableau de bord",
+        "plans": "Offres",
+        "logout": "Déconnexion",
+        "login": "Connexion",
+        "profile": "Profil",
+        "features": "Fonctionnalités",
+        "support": "Support"
+    },
+    "plans": {
+        "title": "Choisissez votre protection",
+        "free": "Plan Gratuit",
+        "free_desc": "Idéal pour commencer, informations vitales de base.",
+        "premium": "Plan Premium",
+        "premium_desc": "Protection complète : dossiers médicaux illimités, fichiers et validité étendue.",
+        "features_free": [
+            "Profil d'urgence basique",
+            "Contact unique",
+            "Validité 1 an"
+        ],
+        "features_premium": [
+            "Profil médical complet",
+            "Multiples contacts",
+            "Historique médical",
+            "Validité 3 ans",
+            "Support priorité"
+        ],
+        "buy": "Passer au Premium"
+    },
+    "payment": {
+        "title": "Paiement Sécurisé",
+        "card_number": "Numéro de carte",
+        "expiry": "Date d'expiration",
+        "cvc": "CVC",
+        "confirm": "Confirmer le paiement",
+        "success": "Paiement réussi ! Votre carte est maintenant active."
+    },
+    "home": {
+        "title1": "Votre ID Médical",
+        "title_highlight": "En Un Seul Scan",
+        "subtitle": "Ne transportez plus de formulaires papier. Sécurisez vos données vitales et donnez un accès instantané aux secours via un QR code physique ou numérique.",
+        "start_button": "Créer un compte gratuit",
+        "learn_more": "Comment ça marche ?",
+        "scan_to_access": "Scanner pour accès vital",
+        "why_title": "Pourquoi LifeTag ?",
+        "features": {
+            "t1": "Sécurité Absolue",
+            "d1": "Données chiffrées au niveau bancaire. Vous gérez qui voit quoi.",
+            "t2": "Accès Instantané",
+            "d2": "Chargement ultra-rapide en contexte d'urgence. Le temps sauve des vies.",
+            "t3": "Système Universel",
+            "d3": "Fonctionne partout. Profil multilingue pour les urgentistes du monde entier."
+        },
+        "how_it_works": {
+            "title": "Comment ça marche ?",
+            "step1": "Créez votre profil",
+            "step1_d": "Inscrivez-vous et renseignez vos informations vitales en ligne en toute sécurité.",
+            "step2": "Obtenez votre carte",
+            "step2_d": "Commandez votre carte. Un QR code unique physique est généré pour vous.",
+            "step3": "Restez protégé",
+            "step3_d": "En cas de problème, les secours scannent le badge pour vous identifier."
+        },
+        "pricing": {
+            "title": "Nos Abonnements",
+            "free": "Carte FREE",
+            "free_d": "Infos basiques. Valable 1 an.",
+            "premium": "Carte PREMIUM",
+            "premium_d": "Dossier complet illimité. Valable 1 à 3 ans.",
+            "premium_price": "69.99 DH",
+            "choose": "Choisir",
+            "upgrade": "Passer Premium"
+        },
+        "footer": "© 2026 LifeTag Medical Systems. Sécurisé, rapide, vital.",
+        "about": {
+            "title": "Qu’est-ce que LifeTag ?",
+            "content": "LifeTag est un système innovant d'identification médicale. En cas d'accident ou de malaise, les premiers secours peuvent scanner votre support physique (carte, bracelet ou porte-clé) pour accéder instantanément à vos données vitales chiffrées."
+        },
+        "products": {
+            "title": "Choisissez votre LifeTag",
+            "card": "Carte LifeTag",
+            "card_d": "Facile à transporter dans le portefeuille",
+            "bracelet": "Bracelet LifeTag",
+            "bracelet_d": "Toujours visible et accessible",
+            "keychain": "Porte-clé LifeTag",
+            "keychain_d": "Pratique et toujours avec vos clés",
+            "subtitle": "Protégez-vous avec style et efficacité",
+            "card_btn": "Découvrir la carte",
+            "bracelet_btn": "Découvrir le bracelet",
+            "keychain_btn": "Découvrir le porte-clé"
+        },
+        "contact": {
+            "title": "Contact",
+            "subtitle": "Questions sur LifeTag, partenariats ou assistance ? Envoyez-nous un message.",
+            "name": "Nom",
+            "email": "E-mail",
+            "subject": "Sujet (optionnel)",
+            "message": "Message",
+            "send": "Envoyer",
+            "success": "Message envoyé. Nous vous répondrons dès que possible.",
+            "cta_hero": "Nous contacter"
+        },
+        "audience": {
+            "title": "À qui s’adresse LifeTag ?",
+            "items": [
+                "Personnes souffrant de maladies chroniques (Diabète, Asthme, Épilepsie, etc.)",
+                "Seniors vivant seuls ou ayant des besoins spécifiques",
+                "Sportifs (VTT, Randonnée, Motards) en cas d'accident isolé",
+                "Enfants pour garantir leur sécurité lors des sorties scolaires",
+                "Voyageurs (profil multilingue pour les soins à l'étranger)",
+                "Toute personne soucieuse de sa santé"
+            ]
+        }
+    },
+    "login": {
+        "title": "Retour sur LifeTag",
+        "email": "Adresse Email",
+        "password": "Mot de passe",
+        "submit": "Se connecter",
+        "no_account": "Pas encore de compte ?",
+        "create_account": "S'inscrire maintenant"
+    },
+    "register": {
+        "title": "Créez votre LifeTag",
+        "name": "Nom Complet",
+        "email": "Adresse Email",
+        "password": "Mot de passe",
+        "submit": "S'inscrire",
+        "has_account": "Vous avez déjà un compte ?",
+        "login_now": "Connectez-vous ici"
+    },
+    "dashboard": {
+        "title": "Votre Tableau LifeTag",
+        "subtitle": "Gérez et commandez vos accès",
+        "welcome": "Bienvenue",
+        "status": "Statut de votre carte :",
+        "request": "Générer Ma Carte",
+        "my_data": "Mes Données Médicales",
+        "edit_data": "Modifier mes infos",
+        "first_time": "Bienvenue ! Veuillez remplir votre profil médical d'urgence.",
+        "save": "Enregistrer mon Profil",
+        "vitals_free_banner": "Plan Free : textes plus courts (allergies, maladies, traitements). Les informations complémentaires et l’affichage détaillé des antécédents sont réservés au Premium. Le scan d’urgence n’affiche pas la date de naissance, le poids ni la taille.",
+        "vitals_premium_identity": "Identité : date de naissance, poids et taille sont visibles sur la page d’urgence après scan du QR.",
+        "vitals_free_identity": "Ces champs sont enregistrés sur votre compte mais ne sont pas affichés sur la page publique d’urgence avec le plan Free (passez en Premium pour les montrer aux secours).",
+        "vitals_chars": "{{used}} / {{max}} caractères",
+        "vitals_maladies_counter": "Bloc maladies (cases + texte) : {{used}} / {{max}} caractères au total",
+        "vitals_maladies_too_long": "Le bloc maladies dépasse la limite du plan ({{max}} caractères). Réduisez le texte « autres » ou décochez des éléments.",
+        "vitals_free_limits_short": "Limites Free : allergies {{a}}, maladies {{m}}, traitements {{med}} caractères max. Premium : informations complémentaires et dossier étendu."
+    },
+    "emergency": {
+        "title": "Profil Médical d'Urgence",
+        "allergies": "Allergies Ciblées",
+        "diseases": "Maladies / Antécédents",
+        "medications": "Traitement En Cours",
+        "blood": "Groupe Sanguin",
+        "contact": "Contact d'Urgence",
+        "contact_relation": "Lien de parenté",
+        "contact_phone": "Téléphone",
+        "birthDate": "Date de Naissance",
+        "weight": "Poids (kg)",
+        "height": "Taille (cm)",
+        "identity": "Identité Patient",
+        "organ_donor": "Donneur d'Organes",
+        "organ_donor_yes": "OUI",
+        "organ_donor_no": "NON",
+        "notes": "Informations Complémentaires",
+        "other_diseases": "Autres maladies non listées..."
+    },
+    "admin": {
+        "title": "Administration LifeTag",
+        "menu_stats": "Aperçu",
+        "menu_users": "Utilisateurs",
+        "menu_reclamations": "Réclamations",
+        "stats_users": "Total Utilisateurs",
+        "stats_cards": "Cartes Générées",
+        "stats_premium": "Plans Premium",
+        "stats_pending": "En attente",
+        "user_list_title": "Gestion des Utilisateurs",
+        "reclamation_list_title": "Gestion des Réclamations",
+        "status_pending": "En attente",
+        "status_resolved": "Résolu",
+        "resolve_btn": "Marquer comme Résolu",
+        "contact_list_title": "Messages du formulaire Contact (site)",
+        "contact_new_count": "Messages contact non lus",
+        "contact_status_new": "Nouveau",
+        "contact_status_read": "Lu",
+        "contact_mark_read": "Marquer lu",
+        "contact_empty": "Aucun message pour l’instant."
+    },
+    "footer": {
+        "brand": "LifeTag",
+        "brand_sub": "Global",
+        "tagline": "Identité médicale d’urgence : un scan pour informer les secours.",
+        "contact_title": "Nous contacter",
+        "email_label": "E-mail",
+        "email": "lifetagglobal@gmail.com",
+        "phone_label": "Téléphone",
+        "phone": "0613503087",
+        "phone_href": "+212613503087",
+        "address_label": "Siège",
+        "address": "Meknès, Maroc",
+        "links_title": "Liens utiles",
+        "link_home": "Accueil",
+        "link_how": "Comment ça marche ?",
+        "link_login": "Connexion",
+        "link_register": "Créer un compte",
+        "rights": "© {{year}} LifeTag Global. Tous droits réservés."
+    }
+}

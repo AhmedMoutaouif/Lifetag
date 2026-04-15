@@ -1,0 +1,95 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+model User {
+  id             Int            @id @default(autoincrement())
+  name           String
+  email          String         @unique
+  password       String
+  role           String         @default("user")
+  status         String         @default("active")
+  createdAt      DateTime       @default(now())
+  updatedAt      DateTime       @updatedAt
+  phone          String?
+  cards          Card[]
+  medicalRecords MedicalRecord?
+  reclamations   Reclamation[]
+  subscriptions  Subscription[]
+}
+
+model MedicalRecord {
+  id              Int      @id @default(autoincrement())
+  userId          Int      @unique
+  allergies       String?
+  maladies        String?
+  medicaments     String?
+  bloodGroup      String?
+  sex             String?
+  age             String?
+  restingBloodPressure String?
+  cholesterol     String?
+  maxHeartRate    String?
+  oxygenSaturation String?
+  glucoseLevel    String?
+  bodyTemperature String?
+  contactName     String?
+  contactPhone    String?
+  contactRelation String?
+  birthDate       String?
+  weight          String?
+  height          String?
+  organDonor      Boolean  @default(false)
+  additionalNotes String?
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+  user            User     @relation(fields: [userId], references: [id])
+}
+
+model Card {
+  id        Int      @id @default(autoincrement())
+  userId    Int
+  qrCode    String   @unique
+  status    String   @default("pending")
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  user      User     @relation(fields: [userId], references: [id])
+}
+
+model Subscription {
+  id        Int       @id @default(autoincrement())
+  userId    Int
+  type      String    @default("FREE")
+  startDate DateTime  @default(now())
+  endDate   DateTime?
+  status    String    @default("active")
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+  user      User      @relation(fields: [userId], references: [id])
+}
+
+model Reclamation {
+  id          Int      @id @default(autoincrement())
+  userId      Int
+  reason      String
+  status      String   @default("pending")
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  description String?
+  user        User     @relation(fields: [userId], references: [id])
+}
+
+model ContactMessage {
+  id        Int      @id @default(autoincrement())
+  name      String
+  email     String
+  subject   String?
+  message   String
+  status    String   @default("new")
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}

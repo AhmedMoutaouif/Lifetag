@@ -1,0 +1,40 @@
+services:
+  - type: web
+    name: lifetag-api
+    runtime: node
+    rootDir: backend
+    buildCommand: npm install
+    startCommand: npx prisma migrate deploy && node server.js
+    autoDeploy: true
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: DATABASE_URL
+        sync: false
+      - key: JWT_SECRET
+        sync: false
+      - key: FRONTEND_URL
+        sync: false
+      - key: STRIPE_SECRET_KEY
+        sync: false
+      - key: STRIPE_PREMIUM_PRICE_ID
+        sync: false
+      - key: STRIPE_WEBHOOK_SECRET
+        sync: false
+
+  - type: web
+    name: lifetag-frontend
+    runtime: static
+    rootDir: frontend
+    buildCommand: npm install && npm run build
+    staticPublishPath: dist
+    autoDeploy: true
+    envVars:
+      - key: VITE_API_URL
+        sync: false
+      - key: VITE_PUBLIC_APP_URL
+        sync: false
+    routes:
+      - type: rewrite
+        source: /*
+        destination: /index.html

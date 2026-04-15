@@ -1,0 +1,183 @@
+{
+    "logout": "Logout",
+    "nav": {
+        "home": "Home",
+        "contact": "Contact",
+        "login": "Login",
+        "dashboard": "Dashboard",
+        "profile": "Profile",
+        "features": "Features",
+        "support": "Support"
+    },
+    "home": {
+        "badge": "Fast & Secure Medical Identification",
+        "title1": "Your Medical ID",
+        "title_highlight": "In a Single Scan",
+        "subtitle": "Stop carrying paper medical records. Store your vitals securely and give first responders instant access through a beautiful digital or physical QR code.",
+        "start_button": "Create Free Account",
+        "learn_more": "How it works",
+        "scan_to_access": "Scan for vital access",
+        "why_title": "Why LifeTag?",
+        "features": {
+            "t1": "Absolute Security",
+            "d1": "Data encrypted with bank-level encryption. You control who sees what.",
+            "t2": "Instant Access",
+            "d2": "Flash-fast loading in emergency contexts. Time saves lives.",
+            "t3": "Universal System",
+            "d3": "Works globally. Multilingual pages for international responders."
+        },
+        "how_it_works": {
+            "title": "How it works?",
+            "step1": "Create your account",
+            "step1_d": "Register and fill out your vital medical information online securely.",
+            "step2": "Get your LifeTag",
+            "step2_d": "Order your card. A unique QR code will be assigned and shipped to you.",
+            "step3": "Stay Protected",
+            "step3_d": "If anything happens, first responders scan your card to get quick access to your vitals."
+        },
+        "pricing": {
+            "title": "Choose your protection",
+            "free": "Free Plan",
+            "free_d": "Basic vitals available for 1 year.",
+            "premium": "Premium Plan",
+            "premium_d": "Complete records, files & full coverage for 3 years.",
+            "premium_price": "69.99 DH",
+            "choose": "Choose",
+            "upgrade": "Go Premium"
+        },
+        "footer": "© 2026 LifeTag Medical Systems. Fast, secure, vital.",
+        "about": {
+            "title": "What is LifeTag?",
+            "content": "LifeTag is an innovative medical identification system. In the event of an accident or medical emergency, first responders can scan your physical support (card, bracelet, or keychain) to get instant access to your encrypted vital data."
+        },
+        "products": {
+            "title": "Choose your LifeTag",
+            "card": "LifeTag Card",
+            "card_d": "Easy to carry in your wallet",
+            "bracelet": "LifeTag Bracelet",
+            "bracelet_d": "Always visible and accessible",
+            "keychain": "LifeTag Keychain",
+            "keychain_d": "Practical and always on your keys",
+            "subtitle": "Protect yourself with style and efficiency",
+            "card_btn": "Discover the card",
+            "bracelet_btn": "Discover the bracelet",
+            "keychain_btn": "Discover the keychain"
+        },
+        "contact": {
+            "title": "Contact",
+            "subtitle": "Questions about LifeTag, partnerships, or support? Send us a message.",
+            "name": "Name",
+            "email": "Email",
+            "subject": "Subject (optional)",
+            "message": "Message",
+            "send": "Send",
+            "success": "Message sent. We will get back to you as soon as possible.",
+            "cta_hero": "Contact us"
+        },
+        "audience": {
+            "title": "Who is LifeTag for?",
+            "items": [
+                "People with chronic diseases (Diabetes, Asthma, Epilepsy, etc.)",
+                "Seniors living alone or with specific needs",
+                "Sports enthusiasts (Mountain biking, Hiking, Bikers) for isolated accidents",
+                "Children to ensure their safety during school trips",
+                "Travelers (multilingual profile for international care)",
+                "Anyone who cares about their health"
+            ]
+        }
+    },
+    "login": {
+        "title": "Welcome Back",
+        "email": "Email Address",
+        "password": "Password",
+        "submit": "Login to LifeTag",
+        "no_account": "Don't have an account?",
+        "create_account": "Create one now"
+    },
+    "register": {
+        "title": "Create your LifeTag",
+        "name": "Full Name",
+        "email": "Email Address",
+        "password": "Password",
+        "submit": "Register",
+        "has_account": "Already have an account?",
+        "login_now": "Login here"
+    },
+    "dashboard": {
+        "title": "Your LifeTag Dashboard",
+        "subtitle": "Manage your profile & order your card",
+        "welcome": "Welcome",
+        "status": "Card Status:",
+        "request": "Request Digital Card",
+        "my_data": "My Medical Data",
+        "edit_data": "Modify my data",
+        "first_time": "Welcome! Please fill in your emergency medical profile.",
+        "save": "Save my Profile",
+        "vitals_free_banner": "Free plan: shorter limits for allergies, diseases, and treatments. Additional notes and detailed disease history on scan are Premium-only. The emergency scan does not show birth date, weight, or height.",
+        "vitals_premium_identity": "Identity: birth date, weight, and height appear on the emergency page after the QR scan.",
+        "vitals_free_identity": "These fields are saved on your account but are not shown on the public emergency page on the Free plan (upgrade to Premium to show them to responders).",
+        "vitals_chars": "{{used}} / {{max}} characters",
+        "vitals_maladies_counter": "Diseases block (checkboxes + text): {{used}} / {{max}} characters total",
+        "vitals_maladies_too_long": "The diseases block exceeds your plan limit ({{max}} characters). Shorten the “other” text or uncheck items.",
+        "vitals_free_limits_short": "Free limits: allergies {{a}}, diseases {{m}}, treatments {{med}} characters max. Premium: additional notes and extended dossier."
+    },
+    "emergency": {
+        "title": "Emergency Medical Profile",
+        "allergies": "Targeted Allergies",
+        "diseases": "Diseases & History",
+        "medications": "Current Medications",
+        "blood": "Blood Group",
+        "contact": "Emergency Contact",
+        "contact_relation": "Relationship",
+        "contact_phone": "Phone",
+        "birthDate": "Date of Birth",
+        "weight": "Weight (kg)",
+        "height": "Height (cm)",
+        "identity": "Patient Identity",
+        "organ_donor": "Organ Donor",
+        "organ_donor_yes": "YES",
+        "organ_donor_no": "NO",
+        "notes": "Additional Notes",
+        "other_diseases": "Other unlisted diseases..."
+    },
+    "admin": {
+        "title": "LifeTag Administration",
+        "menu_stats": "Overview",
+        "menu_users": "Users",
+        "menu_reclamations": "Reclamations",
+        "stats_users": "Total Users",
+        "stats_cards": "Cards Generated",
+        "stats_premium": "Premium Plans",
+        "stats_pending": "Pending Issues",
+        "user_list_title": "User Management",
+        "reclamation_list_title": "Reclamation Management",
+        "status_pending": "Pending",
+        "status_resolved": "Resolved",
+        "resolve_btn": "Mark as Resolved",
+        "contact_list_title": "Contact form messages (website)",
+        "contact_new_count": "Unread contact messages",
+        "contact_status_new": "New",
+        "contact_status_read": "Read",
+        "contact_mark_read": "Mark read",
+        "contact_empty": "No messages yet."
+    },
+    "footer": {
+        "brand": "LifeTag",
+        "brand_sub": "Global",
+        "tagline": "Emergency medical ID: one scan to inform first responders.",
+        "contact_title": "Contact us",
+        "email_label": "Email",
+        "email": "lifetagglobal@gmail.com",
+        "phone_label": "Phone",
+        "phone": "0613503087",
+        "phone_href": "+212613503087",
+        "address_label": "Head office",
+        "address": "Meknes, Morocco",
+        "links_title": "Quick links",
+        "link_home": "Home",
+        "link_how": "How it works",
+        "link_login": "Login",
+        "link_register": "Create account",
+        "rights": "© {{year}} LifeTag Global. All rights reserved."
+    }
+}
