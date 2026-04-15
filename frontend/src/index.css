@@ -877,3 +877,111 @@ body::after {
 .form-card:hover {
   transform: translateY(-2px);
 }
+
+.privacy-page {
+  padding: 2rem 0 4rem;
+}
+
+.privacy-card {
+  max-width: 900px;
+  margin: 0 auto;
+  background: var(--glass-bg);
+  border: 1px solid var(--glass-border);
+  border-radius: var(--radius);
+  backdrop-filter: blur(20px);
+  padding: 2rem;
+}
+
+.privacy-card h1 {
+  font-size: 2rem;
+  margin-bottom: 0.5rem;
+}
+
+.privacy-card h2 {
+  margin-top: 1.5rem;
+  margin-bottom: 0.5rem;
+  font-size: 1.1rem;
+}
+
+.privacy-card p {
+  color: var(--text-secondary);
+  line-height: 1.75;
+}
+
+.privacy-updated {
+  font-size: 0.9rem;
+}
+
+.vitals-two-cols,
+.vitals-three-cols {
+  display: grid;
+  gap: 1.5rem;
+}
+
+.vitals-two-cols {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+.vitals-three-cols {
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+}
+
+.privacy-consent-box {
+  margin-bottom: 1rem;
+  border: 1px solid rgba(59, 130, 246, 0.35);
+  background: rgba(59, 130, 246, 0.08);
+  border-radius: 10px;
+  padding: 0.85rem 1rem;
+}
+
+.privacy-consent-label {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.7rem;
+  font-size: 0.85rem;
+  color: var(--text-secondary);
+}
+
+.privacy-consent-label input {
+  margin-top: 0.15rem;
+}
+
+@media (max-width: 1024px) {
+  .app-container {
+    padding: 0 1rem;
+  }
+
+  .glass-panel {
+    padding: 1.5rem;
+  }
+}
+
+@media (max-width: 768px) {
+  .vitals-two-cols,
+  .vitals-three-cols {
+    grid-template-columns: 1fr;
+  }
+
+  .btn {
+    width: 100%;
+  }
+
+  .toast-container {
+    right: 1rem;
+    left: 1rem;
+    bottom: 1rem;
+  }
+
+  .toast {
+    min-width: 0;
+    width: 100%;
+  }
+
+  .site-footer {
+    padding-top: 2rem;
+  }
+
+  .privacy-card {
+    padding: 1.3rem;
+  }
+}

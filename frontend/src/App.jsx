@@ -17,6 +17,7 @@ import Login from './pages/Login';
 import Register from './pages/Register';
 import Dashboard from './pages/Dashboard';
 import Emergency from './pages/Emergency';
+import PrivacyPolicy from './pages/PrivacyPolicy';
 
 // Global Styles
 import './App.css';
@@ -39,6 +40,7 @@ function App() {
                 <Route path="/" element={<LandingPage />} />
                 <Route path="/login" element={<Login />} />
                 <Route path="/register" element={<Register />} />
+                <Route path="/privacy-policy" element={<PrivacyPolicy />} />
 
                 {/* SÉCURISATION DES ACCÈS AUX DASHBOARDS */}
                 <Route path="/dashboard" element={

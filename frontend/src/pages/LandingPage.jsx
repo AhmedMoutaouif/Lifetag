@@ -218,6 +218,17 @@ const LandingPage = () => {
       </section>
 
       <section id="contact" style={{ padding: '6rem 5%', maxWidth: '720px', margin: '0 auto' }}>
+        <div className="glass-panel" style={{ marginBottom: '2rem', padding: '1.5rem' }}>
+          <h3 style={{ marginBottom: '0.8rem' }}>Confidentialite des donnees</h3>
+          <p style={{ color: 'var(--text-secondary)', marginBottom: '0.9rem' }}>
+            Vos informations de sante sont traitees avec des controles d&apos;acces, de validation et de journalisation.
+            Vous pouvez consulter le detail de nos engagements de confidentialite a tout moment.
+          </p>
+          <Link to="/privacy-policy" className="btn btn-secondary" style={{ width: 'fit-content' }}>
+            Lire la politique de confidentialite
+          </Link>
+        </div>
+
         <h2 style={{ textAlign: 'center', fontSize: '2.5rem', marginBottom: '0.75rem' }} className="text-gradient">{t('home.contact.title')}</h2>
         <p style={{ textAlign: 'center', color: 'var(--text-secondary)', marginBottom: '2.5rem', lineHeight: 1.6 }}>{t('home.contact.subtitle')}</p>
         <form className="glass-panel" onSubmit={submitContact} style={{ padding: '2rem', display: 'grid', gap: '1.25rem' }}>

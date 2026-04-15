@@ -6,6 +6,7 @@ import axios from 'axios';
 import { QRCodeCanvas } from 'qrcode.react';
 import { useAuth } from '../context/AuthContext';
 import Toast from '../components/Toast';
+import { sanitizePhone, sanitizeText, maskSensitive } from '../utils/security';
 
 const COMMON_DISEASES = ["Diabète", "Asthme", "Hypertension", "Épilepsie", "Allergies alimentaires", "Cardiopathie", "Cancer"];
 const API_BASE_URL = import.meta.env.VITE_API_URL || `${window.location.protocol}//${window.location.hostname}:5000`;
@@ -79,6 +80,8 @@ const DashboardUser = () => {
   const [myReclamations, setMyReclamations] = useState([]);
   const [updating, setUpdating] = useState(false);
   const [toasts, setToasts] = useState([]);
+  const [privacyConsent, setPrivacyConsent] = useState(false);
+  const [maskOverviewData, setMaskOverviewData] = useState(true);
 
   useEffect(() => {
     setIsEditing(isVitalsPage);
@@ -184,18 +187,30 @@ const DashboardUser = () => {
     e.preventDefault();
     try {
       const limits = getPlanLimitsDisplay(planLimits, effectivePlanType);
-      const maladiesJSON = JSON.stringify({ selected: selectedDiseases, other: otherDiseases });
+      if (!privacyConsent) {
+        showToast("Veuillez confirmer la clause de confidentialite avant enregistrement.", "error");
+        return;
+      }
+      const safeAllergies = sanitizeText(allergies, limits.allergies);
+      const safeMedicaments = sanitizeText(medicaments, limits.medicaments);
+      const safeOtherDiseases = sanitizeText(otherDiseases, limits.maladies);
+      const safeAdditionalNotes = sanitizeText(additionalNotes, limits.additionalNotes);
+      const safeContactName = sanitizeText(contactName, 120);
+      const safeContactPhone = sanitizePhone(contactPhone, 20);
+      const maladiesJSON = JSON.stringify({ selected: selectedDiseases, other: safeOtherDiseases });
       if (maladiesJSON.length > limits.maladies) {
-        alert(t('dashboard.vitals_maladies_too_long', { max: limits.maladies }));
+        showToast(t('dashboard.vitals_maladies_too_long', { max: limits.maladies }), "error");
         return;
       }
       const res = await axios.post(`${API_BASE_URL}/api/medical`, {
-        allergies, maladies: maladiesJSON, medicaments, bloodGroup,
-        sex, age, restingBloodPressure, cholesterol, maxHeartRate,
-        oxygenSaturation, glucoseLevel, bodyTemperature,
-        contactName, contactPhone, contactRelation,
+        allergies: safeAllergies, maladies: maladiesJSON, medicaments: safeMedicaments, bloodGroup,
+        sex: sanitizeText(sex, 20), age: sanitizeText(age, 8), restingBloodPressure: sanitizeText(restingBloodPressure, 40),
+        cholesterol: sanitizeText(cholesterol, 40), maxHeartRate: sanitizeText(maxHeartRate, 40),
+        oxygenSaturation: sanitizeText(oxygenSaturation, 40), glucoseLevel: sanitizeText(glucoseLevel, 40),
+        bodyTemperature: sanitizeText(bodyTemperature, 40),
+        contactName: safeContactName, contactPhone: safeContactPhone, contactRelation: sanitizeText(contactRelation, 30),
         birthDate, weight, height, organDonor,
-        additionalNotes: effectivePlanType === 'PREMIUM' ? additionalNotes : (medicalData?.additionalNotes ?? '')
+        additionalNotes: effectivePlanType === 'PREMIUM' ? safeAdditionalNotes : (medicalData?.additionalNotes ?? '')
       }, { headers: { Authorization: `Bearer ${token}` } });
 
       if (res.data && res.data.record) {
@@ -204,12 +219,12 @@ const DashboardUser = () => {
         if (res.data.limits) setPlanLimits(res.data.limits);
         if (res.data.effectivePlanType) setEffectivePlanType(res.data.effectivePlanType);
         setIsEditing(isVitalsPage);
-        alert("Profil médical enregistré avec succès !");
+        showToast("Profil medical enregistre avec succes.");
       } else {
         throw new Error("Réponse serveur incomplète");
       }
     } catch (err) {
-      alert("Erreur lors de la sauvegarde : " + (err.response?.data?.error || err.message));
+      showToast("Erreur lors de la sauvegarde : " + (err.response?.data?.error || err.message), "error");
     }
   };
 
@@ -232,7 +247,11 @@ const DashboardUser = () => {
     e.preventDefault();
     setUpdating(true);
     try {
-      const res = await axios.patch(`${API_BASE_URL}/api/user/profile`, profileForm, { headers: { Authorization: `Bearer ${token}` } });
+      const safeProfile = {
+        name: sanitizeText(profileForm.name, 120),
+        phone: sanitizePhone(profileForm.phone, 20)
+      };
+      const res = await axios.patch(`${API_BASE_URL}/api/user/profile`, safeProfile, { headers: { Authorization: `Bearer ${token}` } });
       const updatedUser = { ...user, ...res.data.user };
       setUser(updatedUser);
       localStorage.setItem('lifetag_user', JSON.stringify(updatedUser));
@@ -260,7 +279,10 @@ const DashboardUser = () => {
     e.preventDefault();
     setUpdating(true);
     try {
-      await axios.post(`${API_BASE_URL}/api/reclamation`, { reason: reclamationReason, description: reclamationDesc }, { headers: { Authorization: `Bearer ${token}` } });
+      await axios.post(`${API_BASE_URL}/api/reclamation`, {
+        reason: sanitizeText(reclamationReason, 120),
+        description: sanitizeText(reclamationDesc, 1000)
+      }, { headers: { Authorization: `Bearer ${token}` } });
       showToast("Réclamation envoyée avec succès !");
       setReclamationDesc('');
       setIsReclaiming(false);
@@ -360,7 +382,7 @@ const DashboardUser = () => {
             {effectivePlanType === 'PREMIUM' ? t('dashboard.vitals_premium_identity') : t('dashboard.vitals_free_identity')}
           </div>
 
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1.5rem', marginBottom: '1.5rem' }}>
+          <div className="vitals-two-cols" style={{ marginBottom: '1.5rem' }}>
             <div>
               <label style={{ display: 'block', marginBottom: '0.5rem', color: 'var(--text-secondary)' }}>{t('emergency.birthDate')}</label>
               <input type="date" value={birthDate} onChange={e => setBirthDate(e.target.value)} className="input-field" />
@@ -424,7 +446,7 @@ const DashboardUser = () => {
           <h3 style={{ borderBottom: '1px solid rgba(255,255,255,0.1)', paddingBottom: '0.5rem', marginBottom: '1rem' }}>
             {t('emergency.contact')}
           </h3>
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '1.5rem', marginBottom: '2rem' }}>
+          <div className="vitals-three-cols" style={{ marginBottom: '2rem' }}>
             <div>
               <label style={{ display: 'block', marginBottom: '0.5rem', color: 'var(--text-secondary)' }}>Nom complet</label>
               <input type="text" value={contactName} onChange={e => setContactName(e.target.value)} className="input-field" placeholder="Ex: Marie Dupont" required />
@@ -524,11 +546,27 @@ const DashboardUser = () => {
             </div>
           )}
 
-          <button type="submit" className="btn btn-primary" style={{ width: '100%', padding: '1rem', fontSize: '1.2rem', fontWeight: 'bold' }} disabled={maladiesOverLimit}>
+          <div className="privacy-consent-box">
+            <label className="privacy-consent-label">
+              <input
+                type="checkbox"
+                checked={privacyConsent}
+                onChange={(e) => setPrivacyConsent(e.target.checked)}
+              />
+              <span>
+                Je confirme que ces donnees sont exactes et j&apos;accepte leur traitement securise selon la politique de confidentialite.
+              </span>
+            </label>
+          </div>
+
+          <button type="submit" className="btn btn-primary" style={{ width: '100%', padding: '1rem', fontSize: '1.2rem', fontWeight: 'bold' }} disabled={maladiesOverLimit || !privacyConsent}>
             <CheckCircle size={24} style={{ marginRight: '0.5rem' }} /> ENREGISTRER MON PROFIL
           </button>
 
           <div style={{ marginTop: '1rem', borderTop: '1px solid rgba(255,255,255,0.08)', paddingTop: '1rem' }}>
+            <div style={{ fontSize: '0.82rem', color: 'var(--text-secondary)', marginBottom: '0.65rem' }}>
+              Consultez la <Link to="/privacy-policy">politique de confidentialite</Link> pour les details de protection des donnees.
+            </div>
             <div style={{ fontSize: '0.85rem', color: 'var(--text-secondary)', marginBottom: '0.6rem' }}>
               Carte QR d'urgence (publique, sans connexion) :
             </div>
@@ -564,6 +602,12 @@ const DashboardUser = () => {
           </div>
 
           {isOverviewPage && (
+          <>
+          <div style={{ display: 'flex', justifyContent: 'flex-end', marginBottom: '1rem' }}>
+            <button type="button" className="btn btn-secondary" onClick={() => setMaskOverviewData((v) => !v)}>
+              {maskOverviewData ? "Afficher les donnees sensibles" : "Masquer les donnees sensibles"}
+            </button>
+          </div>
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '1.5rem', borderTop: '1px solid rgba(255,255,255,0.05)', paddingTop: '2.5rem' }}>
             <div className="glass-panel" style={{ padding: '1.2rem', borderLeft: '4px solid var(--accent)', transition: 'all 0.3s' }}>
               <div style={{ fontSize: '0.75rem', fontWeight: 'bold', color: 'var(--text-secondary)', marginBottom: '0.5rem', letterSpacing: '1px' }}>SANG / BLOOD</div>
@@ -573,8 +617,12 @@ const DashboardUser = () => {
 
             <div className="glass-panel" style={{ padding: '1.2rem', borderLeft: '4px solid #3b82f6' }}>
               <div style={{ fontSize: '0.75rem', fontWeight: 'bold', color: 'var(--text-secondary)', marginBottom: '0.5rem', letterSpacing: '1px' }}>URGENCE / ICE</div>
-              <div style={{ fontWeight: 'bold', fontSize: '1.1rem' }}>{medicalData?.contactName || 'Non Configuré'}</div>
-              <div style={{ fontSize: '0.9rem', color: '#3b82f6', marginTop: '0.2rem' }}>{medicalData?.contactPhone || 'Saisir numéro'}</div>
+              <div style={{ fontWeight: 'bold', fontSize: '1.1rem' }}>
+                {maskOverviewData ? maskSensitive(medicalData?.contactName || '', 1) : (medicalData?.contactName || 'Non Configure')}
+              </div>
+              <div style={{ fontSize: '0.9rem', color: '#3b82f6', marginTop: '0.2rem' }}>
+                {maskOverviewData ? maskSensitive(medicalData?.contactPhone || '', 2) : (medicalData?.contactPhone || 'Saisir numero')}
+              </div>
             </div>
 
             <div className="glass-panel" style={{ padding: '1.2rem', borderLeft: '4px solid #f59e0b', background: 'rgba(245, 158, 11, 0.05)' }}>
@@ -583,6 +631,7 @@ const DashboardUser = () => {
               <div style={{ fontSize: '0.75rem', marginTop: '0.5rem', opacity: 0.7 }}>{card ? `ID: ${card.qrCode}` : 'Aucun support physique'}</div>
             </div>
           </div>
+          </>
           )}
 
           {isOverviewPage && effectivePlanType !== 'PREMIUM' && planLimits && (

@@ -28,6 +28,7 @@ const NavBar = ({ toggleLang, i18n, t }) => {
       <div className="nav-main">
         <div className="nav-group">
           <Link to="/" className="nav-link">{t('nav.home')}</Link>
+          <Link to="/privacy-policy" className="nav-link">Confidentialite</Link>
           <a
             href="/#contact"
             className="nav-link"
