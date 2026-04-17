@@ -1,15 +1,24 @@
 const jwt = require("jsonwebtoken");
+const prisma = require("../prismaClient");
 
-const authMiddleware = (req, res, next) => {
+/** JWT + DB: le rôle et le statut viennent toujours de la base (pas du payload JWT ni du localStorage). */
+const authMiddleware = async (req, res, next) => {
   const token = req.header("Authorization")?.split(" ")[1];
-  
+
   if (!token) {
     return res.status(401).json({ message: "No token, authorization denied" });
   }
 
   try {
     const decoded = jwt.verify(token, process.env.JWT_SECRET);
-    req.user = decoded;
+    const user = await prisma.user.findUnique({
+      where: { id: decoded.userId },
+      select: { id: true, role: true, status: true }
+    });
+    if (!user || user.status !== "active") {
+      return res.status(401).json({ message: "Session invalide ou compte désactivé" });
+    }
+    req.user = { userId: user.id, role: user.role };
     next();
   } catch (err) {
     res.status(401).json({ message: "Token is not valid" });

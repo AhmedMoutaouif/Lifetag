@@ -5,6 +5,7 @@ const jwt = require("jsonwebtoken");
 const Stripe = require("stripe");
 const prisma = require("./prismaClient");
 const { authMiddleware, adminMiddleware } = require("./middleware/auth");
+const { assertPasswordMeetsPolicy } = require("./utils/passwordPolicy");
 
 const app = express();
 const stripe = process.env.STRIPE_SECRET_KEY ? new Stripe(process.env.STRIPE_SECRET_KEY) : null;
@@ -175,16 +176,47 @@ const limiter = rateLimit({
 });
 app.use("/api", limiter);
 
+const authLimiter = rateLimit({
+    windowMs: 15 * 60 * 1000,
+    max: 40,
+    message: "Trop de tentatives de connexion ou d'inscription. Réessayez dans quelques minutes.",
+    standardHeaders: true,
+    legacyHeaders: false,
+    skip: (req) => req.method === "OPTIONS"
+});
+
 // Auth Routes
-app.post("/api/register", async (req, res) => {
+app.post("/api/register", authLimiter, async (req, res) => {
     try {
-        const { name, email, password, phone } = req.body;
+        const name = typeof req.body.name === "string" ? req.body.name.trim() : "";
+        const email = typeof req.body.email === "string" ? req.body.email.trim().toLowerCase() : "";
+        const { password, phone } = req.body;
+        if (name.length < 2 || name.length > 120) {
+            return res.status(400).json({ message: "Nom invalide (2–120 caractères)." });
+        }
+        if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email) || email.length > 200) {
+            return res.status(400).json({ message: "Email invalide." });
+        }
         const existingUser = await prisma.user.findUnique({ where: { email } });
         if (existingUser) return res.status(400).json({ message: "User already exists" });
 
+        try {
+            assertPasswordMeetsPolicy(password);
+        } catch (e) {
+            return res.status(e.statusCode || 400).json({ message: e.message });
+        }
+
+        const phoneClean =
+            typeof phone === "string" && phone.trim().length > 0
+                ? phone.replace(/[^\d+\s()-]/g, "").slice(0, 20)
+                : null;
+        if (phoneClean && (phoneClean.match(/\d/g) || []).length > 0 && (phoneClean.match(/\d/g) || []).length < 8) {
+            return res.status(400).json({ message: "Numéro de téléphone invalide (min. 8 chiffres)." });
+        }
+
         const hashedPassword = await bcrypt.hash(password, 10);
         const user = await prisma.user.create({
-            data: { name, email, password: hashedPassword, phone }
+            data: { name, email, password: hashedPassword, phone: phoneClean }
         });
 
         res.status(201).json({ message: "User registered successfully", userId: user.id });
@@ -193,7 +225,7 @@ app.post("/api/register", async (req, res) => {
     }
 });
 
-app.post("/api/login", async (req, res) => {
+app.post("/api/login", authLimiter, async (req, res) => {
     try {
         const { email, password } = req.body;
         const user = await prisma.user.findUnique({ where: { email } });
@@ -215,6 +247,11 @@ app.post("/api/login", async (req, res) => {
 app.post("/api/user/password", authMiddleware, async (req, res) => {
     try {
         const { oldPassword, newPassword } = req.body;
+        try {
+            assertPasswordMeetsPolicy(newPassword);
+        } catch (e) {
+            return res.status(e.statusCode || 400).json({ message: e.message });
+        }
         const user = await prisma.user.findUnique({ where: { id: req.user.userId } });
         const isMatch = await bcrypt.compare(oldPassword, user.password);
         if (!isMatch) return res.status(400).json({ message: "Ancien mot de passe incorrect" });
@@ -284,11 +321,23 @@ app.post("/api/medical", authMiddleware, async (req, res) => {
             birthDate, weight, height, organDonor, additionalNotes
         } = req.body;
 
+        const cn = typeof contactName === "string" ? contactName.trim() : "";
+        const cp = typeof contactPhone === "string" ? contactPhone.trim() : "";
+        if (cn.length < 2 || cn.length > 120) {
+            return res.status(400).json({ error: "Contact d'urgence : nom invalide (2–120 caractères)." });
+        }
+        const phoneDigits = (cp.match(/\d/g) || []).length;
+        if (phoneDigits < 8) {
+            return res.status(400).json({ error: "Contact d'urgence : numéro invalide (au moins 8 chiffres)." });
+        }
+
         const payload = {
             allergies, maladies, medicaments, bloodGroup,
             sex, age, restingBloodPressure, cholesterol, maxHeartRate,
             oxygenSaturation, glucoseLevel, bodyTemperature,
-            contactName, contactPhone, contactRelation,
+            contactName: cn,
+            contactPhone: cp,
+            contactRelation,
             birthDate, weight, height, organDonor, additionalNotes
         };
 
@@ -532,7 +581,14 @@ app.post("/api/payment/webhook", async (req, res) => {
 // Reclamation (Lost card)
 app.post("/api/reclamation", authMiddleware, async (req, res) => {
     try {
-        const { reason, description } = req.body;
+        const reason = typeof req.body.reason === "string" ? req.body.reason.trim() : "";
+        const description = typeof req.body.description === "string" ? req.body.description.trim() : "";
+        if (!reason || reason.length > 200) {
+            return res.status(400).json({ message: "Objet de la demande invalide." });
+        }
+        if (description.length < 10 || description.length > 2000) {
+            return res.status(400).json({ message: "Détails invalides (10–2000 caractères)." });
+        }
         const reclamation = await prisma.reclamation.create({
             data: {
                 userId: req.user.userId,
@@ -706,6 +762,11 @@ app.patch("/api/admin/users/:id", authMiddleware, adminMiddleware, async (req, r
         const data = { name, role, status, phone };
 
         if (password && password.length > 0) {
+            try {
+                assertPasswordMeetsPolicy(password);
+            } catch (e) {
+                return res.status(e.statusCode || 400).json({ message: e.message });
+            }
             data.password = await bcrypt.hash(password, 10);
         }
 
@@ -749,22 +810,18 @@ app.delete("/api/admin/users/:id", authMiddleware, adminMiddleware, async (req, 
     }
 });
 
-
-// User Profile (Get current info)
-app.get("/api/user/profile", authMiddleware, async (req, res) => {
-    try {
-        const user = await prisma.user.findUnique({ where: { id: req.user.userId } });
-        res.json({ user: { id: user.id, name: user.name, email: user.email, phone: user.phone, role: user.role } });
-    } catch (error) {
-        console.error(error);
-        res.status(500).json({ error: error.message });
-    }
-});
-
 // User Update Profile
 app.patch("/api/user/profile", authMiddleware, async (req, res) => {
     try {
-        const { name, phone } = req.body;
+        const name = typeof req.body.name === "string" ? req.body.name.trim() : "";
+        const phoneRaw = typeof req.body.phone === "string" ? req.body.phone.trim() : "";
+        if (name.length < 2 || name.length > 120) {
+            return res.status(400).json({ message: "Nom invalide (2–120 caractères)." });
+        }
+        const phone = phoneRaw ? phoneRaw.replace(/[^\d+\s()-]/g, "").slice(0, 20) : null;
+        if (phone && (phone.match(/\d/g) || []).length < 8) {
+            return res.status(400).json({ message: "Numéro de téléphone invalide (min. 8 chiffres)." });
+        }
         const user = await prisma.user.update({
             where: { id: req.user.userId },
             data: { name, phone }
