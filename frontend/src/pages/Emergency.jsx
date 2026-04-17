@@ -3,8 +3,7 @@ import { useTranslation } from 'react-i18next';
 import { useParams } from 'react-router-dom';
 import { HeartPulse, User, Zap, Activity } from 'lucide-react';
 import axios from 'axios';
-
-const API_BASE_URL = import.meta.env.VITE_API_URL || `${window.location.protocol}//${window.location.hostname}:5000`;
+import { API_BASE_URL } from '../config/apiBase';
 
 const Emergency = () => {
   const { t } = useTranslation();

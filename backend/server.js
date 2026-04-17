@@ -6,6 +6,8 @@ const Stripe = require("stripe");
 const prisma = require("./prismaClient");
 const { authMiddleware, adminMiddleware } = require("./middleware/auth");
 const { assertPasswordMeetsPolicy } = require("./utils/passwordPolicy");
+const { attachAuthCookie, clearAuthCookie } = require("./utils/authCookie");
+const cookieParser = require("cookie-parser");
 
 const app = express();
 const stripe = process.env.STRIPE_SECRET_KEY ? new Stripe(process.env.STRIPE_SECRET_KEY) : null;
@@ -27,6 +29,7 @@ const allowedCorsOrigins = new Set(
 const isAllowedOrigin = (origin) => {
     if (!origin) return false;
     if (allowedCorsOrigins.has(origin)) return true;
+    if (/^https:\/\/[a-z0-9]+\.lifetag-frontend\.pages\.dev$/i.test(origin)) return true;
     return /^https?:\/\/(192\.168\.\d{1,3}\.\d{1,3}|10\.\d{1,3}\.\d{1,3}\.\d{1,3})(:\d+)?$/.test(origin);
 };
 
@@ -158,6 +161,7 @@ const generateUniqueQrCode = async () => {
 
 app.use("/api/payment/webhook", express.raw({ type: "application/json" }));
 app.use(express.json());
+app.use(cookieParser());
 
 const helmet = require("helmet");
 const rateLimit = require("express-rate-limit");
@@ -168,13 +172,12 @@ app.use(
     })
 );
 
-const limiter = rateLimit({
+const publicApiLimiter = rateLimit({
     windowMs: 15 * 60 * 1000,
-    max: 1000,
+    max: 300,
     message: "Trop de requêtes depuis cette IP, veuillez réessayer plus tard.",
     skip: (req) => req.method === "OPTIONS"
 });
-app.use("/api", limiter);
 
 const authLimiter = rateLimit({
     windowMs: 15 * 60 * 1000,
@@ -236,11 +239,21 @@ app.post("/api/login", authLimiter, async (req, res) => {
         if (!isMatch) return res.status(400).json({ message: "Identifiants invalides" });
 
         const token = jwt.sign({ userId: user.id, role: user.role }, process.env.JWT_SECRET, { expiresIn: "7d" });
-        res.json({ token, user: { id: user.id, name: user.name, email: user.email, role: user.role, phone: user.phone } });
+        attachAuthCookie(res, token);
+        res.json({
+            token,
+            user: { id: user.id, name: user.name, email: user.email, role: user.role, phone: user.phone }
+        });
     } catch (error) {
         console.error(error);
         res.status(500).json({ error: error.message });
     }
+});
+
+/** Déconnexion : supprime le cookie httpOnly JWT (le client ne stocke plus le token). */
+app.post("/api/logout", (req, res) => {
+    clearAuthCookie(res);
+    res.json({ ok: true });
 });
 
 // Change Password (User)
@@ -457,7 +470,7 @@ app.get("/api/emergency/:id", async (req, res) => {
 });
 
 // Public contact form (landing page)
-app.post("/api/contact", async (req, res) => {
+app.post("/api/contact", publicApiLimiter, async (req, res) => {
     try {
         const name = typeof req.body.name === "string" ? req.body.name.trim() : "";
         const email = typeof req.body.email === "string" ? req.body.email.trim().toLowerCase() : "";

@@ -5,10 +5,11 @@ import DashboardUser from './DashboardUser';
 
 const Dashboard = () => {
   const { user } = useAuth();
-  if (user.role === 'admin') {
-    return <DashboardAdmin />;
-  }
-  return <DashboardUser />;
+  return (
+    <div className="dashboard-route">
+      {user.role === 'admin' ? <DashboardAdmin /> : <DashboardUser />}
+    </div>
+  );
 };
 
 export default Dashboard;

@@ -52,7 +52,7 @@ const Footer = () => {
               <Link to="/register">{t('footer.link_register')}</Link>
             </li>
             <li>
-              <Link to="/privacy-policy">Politique de confidentialite</Link>
+              <Link to="/privacy-policy">{t('footer.link_privacy')}</Link>
             </li>
           </ul>
         </nav>

@@ -1,18 +1,58 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useMemo } from 'react';
 import { useTranslation } from 'react-i18next';
-import { ShieldCheck, Users, CreditCard, Star, AlertTriangle, Search, Activity, CheckCircle, Download, X, User, Mail, Phone, MessageSquare } from 'lucide-react';
+import { ShieldCheck, Users, CreditCard, Star, AlertTriangle, Search, Activity, CheckCircle, Download, X, User, Mail, Phone, MessageSquare, ChevronLeft, ChevronRight } from 'lucide-react';
 import axios from 'axios';
 import { useAuth } from '../context/AuthContext';
 import Toast from '../components/Toast';
 import { QRCodeCanvas } from 'qrcode.react';
 import html2canvas from 'html2canvas';
 import cardPrintLogo from '../assets/branding/logo-light.png';
+import { API_BASE_URL } from '../config/apiBase';
 
 const PUBLIC_APP_URL = import.meta.env.VITE_PUBLIC_APP_URL || window.location.origin;
-const API_BASE_URL = import.meta.env.VITE_API_URL || `${window.location.protocol}//${window.location.hostname}:5000`;
+
+const PAGE_SIZE_USERS = 10;
+const PAGE_SIZE_CARDS = 10;
+const PAGE_SIZE_CONTACTS = 8;
+const PAGE_SIZE_RECLAMATIONS = 6;
+
+const norm = (s) => (s == null ? '' : String(s)).toLowerCase().trim();
+
+const getEffectivePlanForCard = (card) => {
+  if (!card) return 'FREE';
+  if (card.effectivePlanType === 'PREMIUM' || card.effectivePlanType === 'FREE') return card.effectivePlanType;
+  const subs = card.user?.subscriptions;
+  if (!subs?.length) return 'FREE';
+  const sub = subs.find((s) => s.status === 'active' && (!s.endDate || new Date(s.endDate) > new Date()));
+  if (sub?.type === 'PREMIUM') return 'PREMIUM';
+  return 'FREE';
+};
+
+const AdminPagination = ({ page, totalPages, totalItems, pageSize, onPrev, onNext }) => {
+  const start = totalItems === 0 ? 0 : (page - 1) * pageSize + 1;
+  const end = Math.min(page * pageSize, totalItems);
+  return (
+    <div className="admin-pagination">
+      <span className="admin-pagination__meta">
+        {totalItems === 0 ? 'Aucun élément' : `${start}–${end} sur ${totalItems}`}
+      </span>
+      <div className="admin-pagination__controls">
+        <button type="button" className="admin-pagination__btn" onClick={onPrev} disabled={page <= 1} aria-label="Page précédente">
+          <ChevronLeft size={18} />
+        </button>
+        <span className="admin-pagination__page">
+          {page} / {totalPages}
+        </span>
+        <button type="button" className="admin-pagination__btn" onClick={onNext} disabled={page >= totalPages} aria-label="Page suivante">
+          <ChevronRight size={18} />
+        </button>
+      </div>
+    </div>
+  );
+};
 
 const DashboardAdmin = () => {
-  const { user, token } = useAuth();
+  const { user } = useAuth();
   const { t } = useTranslation();
   const [activeTab, setActiveTab] = useState('stats');
   const [stats, setStats] = useState(null);
@@ -22,11 +62,18 @@ const DashboardAdmin = () => {
   const [contactMessages, setContactMessages] = useState([]);
   const [loading, setLoading] = useState(true);
 
-  const [editingUser, setEditingUser] = useState(null);
+  const [userEditModalId, setUserEditModalId] = useState(null);
   const [editForm, setEditForm] = useState({ name: '', email: '', role: '', status: '', phone: '', password: '' });
   const [toasts, setToasts] = useState([]);
   const [actionLoading, setActionLoading] = useState(false);
-  const [searchTerm, setSearchTerm] = useState('');
+  const [userSearch, setUserSearch] = useState('');
+  const [userPage, setUserPage] = useState(1);
+  const [cardSearch, setCardSearch] = useState('');
+  const [cardPage, setCardPage] = useState(1);
+  const [contactSearch, setContactSearch] = useState('');
+  const [contactPage, setContactPage] = useState(1);
+  const [reclamationSearch, setReclamationSearch] = useState('');
+  const [reclamationPage, setReclamationPage] = useState(1);
   const [selectedCard, setSelectedCard] = useState(null);
   const [cardFaceTab, setCardFaceTab] = useState('recto');
   const [downloadingCard, setDownloadingCard] = useState(false);
@@ -40,18 +87,17 @@ const DashboardAdmin = () => {
   const removeToast = (id) => setToasts(prev => prev.filter(t => t.id !== id));
 
   useEffect(() => {
-    if (!token) {
+    if (!user) {
       setLoading(false);
       return;
     }
     setLoading(true);
-    const config = { headers: { Authorization: `Bearer ${token}` } };
     Promise.all([
-      axios.get(`${API_BASE_URL}/api/admin/stats`, config),
-      axios.get(`${API_BASE_URL}/api/admin/users`, config),
-      axios.get(`${API_BASE_URL}/api/admin/reclamations`, config),
-      axios.get(`${API_BASE_URL}/api/admin/cards`, config),
-      axios.get(`${API_BASE_URL}/api/admin/contact-messages`, config)
+      axios.get(`${API_BASE_URL}/api/admin/stats`),
+      axios.get(`${API_BASE_URL}/api/admin/users`),
+      axios.get(`${API_BASE_URL}/api/admin/reclamations`),
+      axios.get(`${API_BASE_URL}/api/admin/cards`),
+      axios.get(`${API_BASE_URL}/api/admin/contact-messages`)
     ]).then(([sRes, uRes, rRes, cRes, mRes]) => {
       setStats(sRes.data);
       setUsers(uRes.data);
@@ -61,7 +107,78 @@ const DashboardAdmin = () => {
     }).catch(err => {
       console.error("Erreur admin data", err);
     }).finally(() => setLoading(false));
-  }, [token]);
+  }, [user]);
+
+  const filteredUsers = useMemo(() => {
+    const q = norm(userSearch);
+    if (!q) return users;
+    return users.filter(
+      (u) =>
+        norm(u.name).includes(q) ||
+        norm(u.email).includes(q) ||
+        norm(u.phone).includes(q) ||
+        norm(u.role).includes(q) ||
+        norm(u.status).includes(q)
+    );
+  }, [users, userSearch]);
+
+  const filteredCards = useMemo(() => {
+    const q = norm(cardSearch);
+    if (!q) return cards;
+    return cards.filter(
+      (c) =>
+        norm(c.qrCode).includes(q) ||
+        norm(c.status).includes(q) ||
+        norm(c.user?.name).includes(q) ||
+        norm(c.user?.email).includes(q) ||
+        norm(getEffectivePlanForCard(c)).includes(q)
+    );
+  }, [cards, cardSearch]);
+
+  const filteredContacts = useMemo(() => {
+    const q = norm(contactSearch);
+    if (!q) return contactMessages;
+    return contactMessages.filter(
+      (m) =>
+        norm(m.name).includes(q) ||
+        norm(m.email).includes(q) ||
+        norm(m.subject).includes(q) ||
+        norm(m.message).includes(q) ||
+        norm(m.status).includes(q)
+    );
+  }, [contactMessages, contactSearch]);
+
+  const filteredReclamations = useMemo(() => {
+    const q = norm(reclamationSearch);
+    if (!q) return reclamations;
+    return reclamations.filter(
+      (r) =>
+        norm(r.reason).includes(q) ||
+        norm(r.description).includes(q) ||
+        norm(r.user?.name).includes(q) ||
+        norm(r.user?.email).includes(q) ||
+        norm(r.status).includes(q)
+    );
+  }, [reclamations, reclamationSearch]);
+
+  const userTotalPages = Math.max(1, Math.ceil(filteredUsers.length / PAGE_SIZE_USERS));
+  const userSafePage = Math.min(userPage, userTotalPages);
+  const pagedUsers = filteredUsers.slice((userSafePage - 1) * PAGE_SIZE_USERS, userSafePage * PAGE_SIZE_USERS);
+
+  const cardTotalPages = Math.max(1, Math.ceil(filteredCards.length / PAGE_SIZE_CARDS));
+  const cardSafePage = Math.min(cardPage, cardTotalPages);
+  const pagedCards = filteredCards.slice((cardSafePage - 1) * PAGE_SIZE_CARDS, cardSafePage * PAGE_SIZE_CARDS);
+
+  const contactTotalPages = Math.max(1, Math.ceil(filteredContacts.length / PAGE_SIZE_CONTACTS));
+  const contactSafePage = Math.min(contactPage, contactTotalPages);
+  const pagedContacts = filteredContacts.slice((contactSafePage - 1) * PAGE_SIZE_CONTACTS, contactSafePage * PAGE_SIZE_CONTACTS);
+
+  const reclamationTotalPages = Math.max(1, Math.ceil(filteredReclamations.length / PAGE_SIZE_RECLAMATIONS));
+  const reclamationSafePage = Math.min(reclamationPage, reclamationTotalPages);
+  const pagedReclamations = filteredReclamations.slice(
+    (reclamationSafePage - 1) * PAGE_SIZE_RECLAMATIONS,
+    reclamationSafePage * PAGE_SIZE_RECLAMATIONS
+  );
 
   useEffect(() => {
     if (!selectedCard) return undefined;
@@ -77,10 +194,19 @@ const DashboardAdmin = () => {
     };
   }, [selectedCard]);
 
+  useEffect(() => {
+    if (userEditModalId === null) return undefined;
+    const onKey = (e) => {
+      if (e.key === 'Escape') setUserEditModalId(null);
+    };
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  }, [userEditModalId]);
+
   const resolveReclamation = async (id) => {
     setActionLoading(true);
     try {
-      await axios.patch(`${API_BASE_URL}/api/admin/reclamations/${id}`, { status: 'resolved' }, { headers: { Authorization: `Bearer ${token}` } });
+      await axios.patch(`${API_BASE_URL}/api/admin/reclamations/${id}`, { status: 'resolved' });
       setReclamations(prev => prev.map(r => r.id === id ? { ...r, status: 'resolved' } : r));
       showToast("Demande résolue");
     } catch (err) { showToast("Échec de l'action", "error"); }
@@ -90,24 +216,28 @@ const DashboardAdmin = () => {
   const updateCardStatus = async (id, status) => {
     setActionLoading(true);
     try {
-      await axios.patch(`${API_BASE_URL}/api/admin/cards/${id}`, { status }, { headers: { Authorization: `Bearer ${token}` } });
+      await axios.patch(`${API_BASE_URL}/api/admin/cards/${id}`, { status });
       setCards(prev => prev.map(c => c.id === id ? { ...c, status } : c));
       showToast("Statut carte mis à jour");
     } catch (err) { showToast("Erreur API", "error"); }
     finally { setActionLoading(false); }
   };
 
-  const startEditUser = (u) => {
-    setEditingUser(u.id);
+  const openUserEditModal = (u) => {
+    setUserEditModalId(u.id);
     setEditForm({ name: u.name, email: u.email, role: u.role, status: u.status, phone: u.phone || '', password: '' });
+  };
+
+  const closeUserEditModal = () => {
+    setUserEditModalId(null);
   };
 
   const handleUpdateUser = async (id) => {
     setActionLoading(true);
     try {
-      const res = await axios.patch(`${API_BASE_URL}/api/admin/users/${id}`, editForm, { headers: { Authorization: `Bearer ${token}` } });
+      const res = await axios.patch(`${API_BASE_URL}/api/admin/users/${id}`, editForm);
       setUsers(prev => prev.map(u => u.id === id ? res.data : u));
-      setEditingUser(null);
+      setUserEditModalId(null);
       showToast("Utilisateur synchronisé");
     } catch (err) { showToast("Échec de mise à jour", "error"); }
     finally { setActionLoading(false); }
@@ -117,8 +247,9 @@ const DashboardAdmin = () => {
     if (window.confirm("Supprimer définitivement cet utilisateur ?")) {
       setActionLoading(true);
       try {
-        await axios.delete(`${API_BASE_URL}/api/admin/users/${id}`, { headers: { Authorization: `Bearer ${token}` } });
+        await axios.delete(`${API_BASE_URL}/api/admin/users/${id}`);
         setUsers(prev => prev.filter(u => u.id !== id));
+        if (userEditModalId === id) setUserEditModalId(null);
         showToast("Utilisateur supprimé");
       } catch (err) { showToast("Accès refusé", "error"); }
       finally { setActionLoading(false); }
@@ -133,7 +264,7 @@ const DashboardAdmin = () => {
   const markContactRead = async (id) => {
     setActionLoading(true);
     try {
-      await axios.patch(`${API_BASE_URL}/api/admin/contact-messages/${id}`, { status: 'read' }, { headers: { Authorization: `Bearer ${token}` } });
+      await axios.patch(`${API_BASE_URL}/api/admin/contact-messages/${id}`, { status: 'read' });
       setContactMessages((prev) => prev.map((m) => (m.id === id ? { ...m, status: 'read' } : m)));
       setStats((s) =>
         s
@@ -332,23 +463,26 @@ const DashboardAdmin = () => {
   if (loading) return <div style={{ textAlign: 'center', padding: '4rem', color: 'var(--accent)' }}>Bio-Metric Security Access...</div>;
 
   return (
-    <div className="glass-panel fade-up" style={{ borderTop: '6px solid #3b82f6' }}>
-      <div style={{ display: 'flex', alignItems: 'center', gap: '1.5rem', marginBottom: '3rem' }}>
-        <div style={{ padding: '1rem', background: 'rgba(59, 130, 246, 0.1)', borderRadius: '15px' }}><ShieldCheck size={40} color="#3b82f6" /></div>
-        <div>
-          <h2 style={{ marginBottom: '0.2rem' }}>{t('admin.title')}</h2>
-          <p style={{ color: 'var(--text-secondary)' }}>Admin Tools: <strong>{user.name}</strong></p>
+    <div className="admin-dashboard glass-panel fade-up">
+      <div className="admin-dashboard__header">
+        <div style={{ display: 'flex', alignItems: 'center', gap: '1.5rem' }}>
+          <div style={{ padding: '1rem', background: 'rgba(59, 130, 246, 0.1)', borderRadius: '15px' }}><ShieldCheck size={40} color="#3b82f6" /></div>
+          <div>
+            <h2 style={{ marginBottom: '0.2rem' }}>{t('admin.title')}</h2>
+            <p style={{ color: 'var(--text-secondary)' }}>Admin Tools: <strong>{user.name}</strong></p>
+          </div>
         </div>
       </div>
 
-      <div style={{ display: 'flex', gap: '1rem', marginBottom: '3rem', borderBottom: '1px solid rgba(255,255,255,0.05)', paddingBottom: '1rem', overflowX: 'auto' }}>
+      <div className="admin-dashboard__tabs">
         {['stats', 'users', 'cards', 'reclamations', 'contacts'].map(tab => (
-          <button key={tab} onClick={() => setActiveTab(tab)} className={`nav-link ${activeTab === tab ? 'active' : ''}`} style={{ background: activeTab === tab ? 'rgba(59, 130, 246, 0.1)' : 'transparent', border: 'none', padding: '0.8rem 1.5rem', borderRadius: '10px', color: activeTab === tab ? '#3b82f6' : 'var(--text-secondary)', fontWeight: 'bold', cursor: 'pointer', whiteSpace: 'nowrap' }}>
+          <button key={tab} type="button" onClick={() => setActiveTab(tab)} className={`admin-dashboard__tab ${activeTab === tab ? 'admin-dashboard__tab--active' : ''}`}>
             {tab.toUpperCase()}
           </button>
         ))}
       </div>
 
+      <div className="admin-dashboard__scroll">
       {activeTab === 'stats' && stats && (
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: '1.5rem' }}>
           <div className="glass-panel" style={{ padding: '1.5rem', textAlign: 'center', borderBottom: '4px solid #3b82f6' }}>
@@ -381,122 +515,120 @@ const DashboardAdmin = () => {
 
 
       {activeTab === 'users' && (
-        <div className="fade-in">
-          <div style={{ position: 'relative', marginBottom: '2rem' }}>
-            <Search size={18} style={{ position: 'absolute', left: '1rem', top: '50%', transform: 'translateY(-50%)', color: 'var(--text-secondary)' }} />
-            <input type="text" placeholder="Rechercher par nom ou email..." value={searchTerm} onChange={e => setSearchTerm(e.target.value)} className="input-field" style={{ paddingLeft: '3rem', marginBottom: 0 }} />
+        <div className="fade-in admin-tab-panel">
+          <div className="admin-search">
+            <Search size={18} className="admin-search__icon" aria-hidden />
+            <input
+              type="search"
+              className="input-field admin-search__input"
+              placeholder="Recherche : nom, email, téléphone, rôle, statut…"
+              value={userSearch}
+              onChange={(e) => {
+                setUserSearch(e.target.value);
+                setUserPage(1);
+              }}
+            />
           </div>
-
-          <table style={{ width: '100%', textAlign: 'left', borderCollapse: 'collapse' }}>
-            <thead>
-              <tr style={{ color: 'var(--text-secondary)', borderBottom: '1px solid rgba(255,255,255,0.1)' }}>
-                <th style={{ padding: '1rem' }}>IDENTITÉ</th>
-                <th style={{ padding: '1rem' }}>RÔLE / ACCÈS</th>
-                <th style={{ padding: '1rem' }}>ÉTAT DU COMPTE</th>
-                <th style={{ padding: '1rem' }}>ACTIONS</th>
-              </tr>
-            </thead>
-            <tbody>
-              {users.filter(u => u.name.toLowerCase().includes(searchTerm.toLowerCase()) || u.email.toLowerCase().includes(searchTerm.toLowerCase())).map(u => (
-                <tr key={u.id} style={{ borderBottom: '1px solid rgba(255,255,255,0.03)', transition: 'background 0.2s' }}>
-                  <td style={{ padding: '1rem' }}>
-                    {editingUser === u.id ? (
-                      <div style={{ display: 'grid', gap: '0.5rem' }}>
-                        <input className="input-field" type="email" value={editForm.email} readOnly style={{ opacity: 0.6, background: 'rgba(255,255,255,0.02)', fontWeight: 'bold', cursor: 'not-allowed' }} title="L'email ne peut pas être modifié" />
-                        <input className="input-field" value={editForm.name} onChange={e => setEditForm({ ...editForm, name: e.target.value })} placeholder="Nom Complet" />
-                        <input className="input-field" value={editForm.phone} onChange={e => setEditForm({ ...editForm, phone: e.target.value })} placeholder="Téléphone" />
-                        <input className="input-field" type="password" value={editForm.password} onChange={e => setEditForm({ ...editForm, password: e.target.value })} placeholder="Nouveau mot de passe (optionnel)" />
-                      </div>
-                    ) : (
-                      <div style={{ display: 'flex', alignItems: 'center', gap: '1rem' }}>
-                        <div style={{ width: '40px', height: '40px', background: 'rgba(255,255,255,0.05)', borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 'bold', color: 'var(--accent)' }}>{u.name.charAt(0)}</div>
+          <div className="admin-table-scroll">
+            <table className="admin-table">
+              <thead>
+                <tr>
+                  <th>Identité</th>
+                  <th>Rôle</th>
+                  <th>État</th>
+                  <th className="admin-table__actions">Actions</th>
+                </tr>
+              </thead>
+              <tbody>
+                {pagedUsers.map((u) => (
+                  <tr key={u.id}>
+                    <td>
+                      <div className="admin-user-cell">
+                        <div className="admin-user-cell__avatar">{u.name.charAt(0)}</div>
                         <div>
-                          <div style={{ fontWeight: 'bold' }}>{u.name}</div>
-                          <div style={{ fontSize: '0.8rem', color: 'var(--text-secondary)' }}>{u.email}</div>
-                          {u.phone && <div style={{ fontSize: '0.8rem', color: '#10b981' }}>{u.phone}</div>}
+                          <div className="admin-user-cell__name">{u.name}</div>
+                          <div className="admin-user-cell__meta">{u.email}</div>
+                          {u.phone ? <div className="admin-user-cell__phone">{u.phone}</div> : null}
                         </div>
                       </div>
-                    )}
-                  </td>
-                  <td style={{ padding: '1rem' }}>
-                    {editingUser === u.id ? (
-                      <select className="input-field" value={editForm.role} onChange={e => setEditForm({ ...editForm, role: e.target.value })}>
-                        <option value="user">Utilisateur Standard</option><option value="admin">Administrateur</option>
-                      </select>
-                    ) : (
-                      <span style={{ background: u.role === 'admin' ? 'rgba(59, 130, 246, 0.1)' : 'transparent', color: u.role === 'admin' ? '#3b82f6' : 'inherit', padding: '0.2rem 0.6rem', borderRadius: '4px', fontSize: '0.85rem' }}>{u.role.toUpperCase()}</span>
-                    )}
-                  </td>
-                  <td style={{ padding: '1rem' }}>
-                    {editingUser === u.id ? (
-                      <select className="input-field" value={editForm.status} onChange={e => setEditForm({ ...editForm, status: e.target.value })}>
-                        <option value="active">Activé</option><option value="deactivated">Suspendu / Désactivé</option>
-                      </select>
-                    ) : (
-                      <span className={`status-badge ${u.status === 'active' ? 'status-active' : 'status-danger'}`} style={{
-                        padding: '0.3rem 0.8rem',
-                        borderRadius: '50px',
-                        fontSize: '0.75rem',
-                        fontWeight: 'bold',
-                        background: u.status === 'active' ? 'rgba(16, 185, 129, 0.1)' : 'rgba(239, 68, 68, 0.1)',
-                        color: u.status === 'active' ? '#10b981' : '#ef4444',
-                        border: `1px solid ${u.status === 'active' ? 'rgba(16, 185, 129, 0.2)' : 'rgba(239, 68, 68, 0.2)'}`
-                      }}>
-                        {u.status.toUpperCase()}
-                      </span>
-                    )}
-                  </td>
-                  <td style={{ padding: '1rem' }}>
-                    {editingUser === u.id ? (
-                      <div style={{ display: 'flex', gap: '0.5rem' }}>
-                        <button className="btn btn-primary" onClick={() => handleUpdateUser(u.id)} style={{ padding: '0.4rem 0.8rem', fontSize: '0.8rem' }} disabled={actionLoading}>{actionLoading ? "..." : "OK"}</button>
-                        <button className="btn btn-secondary" onClick={() => setEditingUser(null)} style={{ padding: '0.4rem 0.8rem', fontSize: '0.8rem' }}>CANCEL</button>
+                    </td>
+                    <td>
+                      <span className={`admin-badge admin-badge--${u.role === 'admin' ? 'admin' : 'user'}`}>{u.role}</span>
+                    </td>
+                    <td>
+                      <span className={`admin-badge admin-badge--${u.status === 'active' ? 'ok' : 'off'}`}>{u.status}</span>
+                    </td>
+                    <td className="admin-table__actions">
+                      <div className="admin-row-actions">
+                        <button type="button" className="btn btn-secondary btn--sm" onClick={() => openUserEditModal(u)}>Modifier</button>
+                        <button type="button" className="btn btn-secondary btn--sm btn--danger" onClick={() => handleDeleteUser(u.id)}>Supprimer</button>
                       </div>
-                    ) : (
-                      <div style={{ display: 'flex', gap: '0.5rem' }}>
-                        <button className="btn btn-secondary" onClick={() => startEditUser(u)} style={{ padding: '0.4rem 0.8rem', fontSize: '0.8rem' }}>EDIT</button>
-                        <button className="btn btn-secondary" onClick={() => handleDeleteUser(u.id)} style={{ padding: '0.4rem 0.8rem', fontSize: '0.8rem', borderColor: '#ef4444', color: '#ef4444' }}>DELETE</button>
-                      </div>
-                    )}
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-          {users.filter(u => u.name.toLowerCase().includes(searchTerm.toLowerCase()) || u.email.toLowerCase().includes(searchTerm.toLowerCase())).length === 0 && (
-            <div style={{ textAlign: 'center', padding: '3rem', color: 'var(--text-secondary)' }}>Aucun résultat pour "{searchTerm}"</div>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+          <AdminPagination
+            page={userSafePage}
+            totalPages={userTotalPages}
+            totalItems={filteredUsers.length}
+            pageSize={PAGE_SIZE_USERS}
+            onPrev={() => setUserPage((p) => Math.max(1, p - 1))}
+            onNext={() => setUserPage((p) => Math.min(userTotalPages, p + 1))}
+          />
+          {filteredUsers.length === 0 && (
+            <div className="admin-empty">Aucun résultat{userSearch ? ` pour « ${userSearch} »` : ''}.</div>
           )}
         </div>
       )}
 
-      {
-        activeTab === 'cards' && (
-          <div className="fade-in">
-            <table style={{ width: '100%', textAlign: 'left' }}>
-              <thead><tr style={{ color: 'var(--text-secondary)' }}><th style={{ padding: '1rem' }}>USER</th><th style={{ padding: '1rem' }}>PLAN</th><th style={{ padding: '1rem' }}>QR</th><th style={{ padding: '1rem' }}>STATUS</th><th style={{ padding: '1rem' }}>ACTION</th><th style={{ padding: '1rem' }}>CARTE CLIENT</th></tr></thead>
+      {activeTab === 'cards' && (
+        <div className="fade-in admin-tab-panel">
+          <div className="admin-search">
+            <Search size={18} className="admin-search__icon" aria-hidden />
+            <input
+              type="search"
+              className="input-field admin-search__input"
+              placeholder="Recherche : utilisateur, QR, statut, plan…"
+              value={cardSearch}
+              onChange={(e) => {
+                setCardSearch(e.target.value);
+                setCardPage(1);
+              }}
+            />
+          </div>
+          <div className="admin-table-scroll">
+            <table className="admin-table">
+              <thead>
+                <tr>
+                  <th>Utilisateur</th>
+                  <th>Plan</th>
+                  <th>QR</th>
+                  <th>Statut</th>
+                  <th>Action</th>
+                  <th>Carte</th>
+                </tr>
+              </thead>
               <tbody>
-                {cards.map(c => (
-                  <tr key={c.id} style={{ borderBottom: '1px solid rgba(255,255,255,0.03)' }}>
-                    <td style={{ padding: '1rem' }}>{c.user?.name}</td>
-                    <td style={{ padding: '1rem' }}>
-                      <span style={{
-                        fontSize: '0.7rem',
-                        fontWeight: 800,
-                        letterSpacing: '0.08em',
-                        padding: '0.25rem 0.5rem',
-                        border: `1px solid ${getEffectivePlan(c) === 'PREMIUM' ? '#c9a227' : '#8B0000'}`,
-                        color: getEffectivePlan(c) === 'PREMIUM' ? '#c9a227' : '#f87171'
-                      }}>{getEffectivePlan(c)}</span>
+                {pagedCards.map((c) => (
+                  <tr key={c.id}>
+                    <td>{c.user?.name}</td>
+                    <td>
+                      <span className={`admin-plan-tag admin-plan-tag--${getEffectivePlan(c) === 'PREMIUM' ? 'premium' : 'free'}`}>{getEffectivePlan(c)}</span>
                     </td>
-                    <td style={{ padding: '1rem' }}><code>{c.qrCode}</code></td>
-                    <td style={{ padding: '1rem' }}>{c.status}</td>
-                    <td style={{ padding: '1rem' }}>
-                      <select value={c.status} onChange={(e) => updateCardStatus(c.id, e.target.value)} className="input-field" style={{ padding: '0.2rem' }}>
-                        <option value="pending">En attente</option><option value="validated">Activée</option><option value="shipped">Expédiée</option><option value="deactivated">Désactivée</option>
+                    <td><code className="admin-code">{c.qrCode}</code></td>
+                    <td>{c.status}</td>
+                    <td>
+                      <select value={c.status} onChange={(e) => updateCardStatus(c.id, e.target.value)} className="input-field admin-select-inline">
+                        <option value="pending">En attente</option>
+                        <option value="validated">Activée</option>
+                        <option value="shipped">Expédiée</option>
+                        <option value="deactivated">Désactivée</option>
                       </select>
                     </td>
-                    <td style={{ padding: '1rem' }}>
-                      <button className="btn btn-secondary" onClick={() => openCardDesigner(c)} style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', padding: '0.4rem 0.8rem', fontSize: '0.8rem' }}>
+                    <td>
+                      <button type="button" className="btn btn-secondary btn--sm" onClick={() => openCardDesigner(c)}>
                         <Download size={14} /> Générer
                       </button>
                     </td>
@@ -505,93 +637,201 @@ const DashboardAdmin = () => {
               </tbody>
             </table>
           </div>
-        )
-      }
+          <AdminPagination
+            page={cardSafePage}
+            totalPages={cardTotalPages}
+            totalItems={filteredCards.length}
+            pageSize={PAGE_SIZE_CARDS}
+            onPrev={() => setCardPage((p) => Math.max(1, p - 1))}
+            onNext={() => setCardPage((p) => Math.min(cardTotalPages, p + 1))}
+          />
+          {filteredCards.length === 0 && (
+            <div className="admin-empty">Aucune carte{cardSearch ? ` pour « ${cardSearch} »` : ''}.</div>
+          )}
+        </div>
+      )}
 
       {activeTab === 'contacts' && (
-        <div className="fade-in">
-          <h3 style={{ marginBottom: '1rem', color: 'var(--text-secondary)' }}>{t('admin.contact_list_title')}</h3>
-          <table style={{ width: '100%', textAlign: 'left', borderCollapse: 'collapse' }}>
-            <thead>
-              <tr style={{ color: 'var(--text-secondary)' }}>
-                <th style={{ padding: '1rem' }}>DATE</th>
-                <th style={{ padding: '1rem' }}>NOM</th>
-                <th style={{ padding: '1rem' }}>EMAIL</th>
-                <th style={{ padding: '1rem' }}>SUJET</th>
-                <th style={{ padding: '1rem' }}>STATUT</th>
-                <th style={{ padding: '1rem' }}>MESSAGE</th>
-                <th style={{ padding: '1rem' }}>ACTION</th>
-              </tr>
-            </thead>
-            <tbody>
-              {contactMessages.map((msg) => (
-                <tr key={msg.id} style={{ borderBottom: '1px solid rgba(255,255,255,0.03)', verticalAlign: 'top' }}>
-                  <td style={{ padding: '1rem', fontSize: '0.85rem', color: 'var(--text-secondary)' }}>{new Date(msg.createdAt).toLocaleString()}</td>
-                  <td style={{ padding: '1rem' }}>{msg.name}</td>
-                  <td style={{ padding: '1rem' }}><a href={`mailto:${msg.email}`} style={{ color: '#60a5fa' }}>{msg.email}</a></td>
-                  <td style={{ padding: '1rem', maxWidth: '140px' }}>{msg.subject || '—'}</td>
-                  <td style={{ padding: '1rem' }}>
-                    <span style={{
-                      fontSize: '0.75rem',
-                      fontWeight: 700,
-                      padding: '0.25rem 0.5rem',
-                      borderRadius: '6px',
-                      background: msg.status === 'new' ? 'rgba(168, 85, 247, 0.2)' : 'rgba(16, 185, 129, 0.15)',
-                      color: msg.status === 'new' ? '#c084fc' : '#34d399'
-                    }}>{msg.status === 'new' ? t('admin.contact_status_new') : t('admin.contact_status_read')}</span>
-                  </td>
-                  <td style={{ padding: '1rem', maxWidth: '320px', fontSize: '0.9rem', lineHeight: 1.45, whiteSpace: 'pre-wrap' }}>{msg.message}</td>
-                  <td style={{ padding: '1rem' }}>
-                    {msg.status === 'new' ? (
-                      <button type="button" className="btn btn-secondary" disabled={actionLoading} onClick={() => markContactRead(msg.id)} style={{ padding: '0.4rem 0.8rem', fontSize: '0.8rem' }}>
-                        {t('admin.contact_mark_read')}
-                      </button>
-                    ) : (
-                      <span style={{ color: 'var(--text-secondary)', fontSize: '0.85rem' }}>—</span>
-                    )}
-                  </td>
+        <div className="fade-in admin-tab-panel">
+          <h3 className="admin-subtitle">{t('admin.contact_list_title')}</h3>
+          <div className="admin-search">
+            <Search size={18} className="admin-search__icon" aria-hidden />
+            <input
+              type="search"
+              className="input-field admin-search__input"
+              placeholder="Recherche : nom, email, sujet, message…"
+              value={contactSearch}
+              onChange={(e) => {
+                setContactSearch(e.target.value);
+                setContactPage(1);
+              }}
+            />
+          </div>
+          <div className="admin-table-scroll">
+            <table className="admin-table admin-table--contacts">
+              <thead>
+                <tr>
+                  <th>Date</th>
+                  <th>Nom</th>
+                  <th>Email</th>
+                  <th>Sujet</th>
+                  <th>Statut</th>
+                  <th>Message</th>
+                  <th>Action</th>
                 </tr>
-              ))}
-            </tbody>
-          </table>
+              </thead>
+              <tbody>
+                {pagedContacts.map((msg) => (
+                  <tr key={msg.id}>
+                    <td className="admin-muted">{new Date(msg.createdAt).toLocaleString()}</td>
+                    <td>{msg.name}</td>
+                    <td><a href={`mailto:${msg.email}`} className="admin-link">{msg.email}</a></td>
+                    <td className="admin-clip">{msg.subject || '—'}</td>
+                    <td>
+                      <span className={`admin-badge admin-badge--${msg.status === 'new' ? 'pending' : 'ok'}`}>
+                        {msg.status === 'new' ? t('admin.contact_status_new') : t('admin.contact_status_read')}
+                      </span>
+                    </td>
+                    <td className="admin-msg-cell">{msg.message}</td>
+                    <td>
+                      {msg.status === 'new' ? (
+                        <button type="button" className="btn btn-secondary btn--sm" disabled={actionLoading} onClick={() => markContactRead(msg.id)}>
+                          {t('admin.contact_mark_read')}
+                        </button>
+                      ) : (
+                        <span className="admin-muted">—</span>
+                      )}
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+          <AdminPagination
+            page={contactSafePage}
+            totalPages={contactTotalPages}
+            totalItems={filteredContacts.length}
+            pageSize={PAGE_SIZE_CONTACTS}
+            onPrev={() => setContactPage((p) => Math.max(1, p - 1))}
+            onNext={() => setContactPage((p) => Math.min(contactTotalPages, p + 1))}
+          />
           {contactMessages.length === 0 && (
-            <div style={{ textAlign: 'center', padding: '3rem', color: 'var(--text-secondary)' }}>{t('admin.contact_empty')}</div>
+            <div className="admin-empty">{t('admin.contact_empty')}</div>
+          )}
+          {contactMessages.length > 0 && filteredContacts.length === 0 && (
+            <div className="admin-empty">Aucun résultat pour « {contactSearch} ».</div>
           )}
         </div>
       )}
 
       {activeTab === 'reclamations' && (
-        <div className="fade-in" style={{ display: 'grid', gap: '1.2rem' }}>
-          {reclamations.map(r => (
-            <div key={r.id} className="glass-panel" style={{ padding: '1.5rem', display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', borderLeft: r.status === 'resolved' ? '6px solid #10b981' : '6px solid #f59e0b' }}>
-              <div style={{ flex: 1 }}>
-                <div style={{ display: 'flex', alignItems: 'center', gap: '0.8rem', marginBottom: '0.5rem' }}>
-                  <span style={{ fontWeight: 'bold', fontSize: '1rem' }}>{r.user?.name}</span>
-                  <span style={{ fontSize: '0.75rem', background: 'rgba(255,255,255,0.05)', padding: '0.2rem 0.6rem', borderRadius: '4px', color: 'var(--text-secondary)' }}>ID #{r.id}</span>
-                </div>
-                <div style={{ fontWeight: '600', color: r.status === 'resolved' ? '#10b981' : '#f59e0b', fontSize: '0.9rem', textTransform: 'uppercase', marginBottom: '0.5rem', letterSpacing: '0.5px' }}>{r.reason}</div>
-                <div style={{ fontSize: '0.92rem', color: 'rgba(255,255,255,0.8)', background: 'rgba(0,0,0,0.15)', padding: '1rem', borderRadius: '12px', border: '1px solid rgba(255,255,255,0.03)', marginTop: '0.5rem', lineHeight: '1.5' }}>
-                  {r.description || "Aucun détail complémentaire."}
-                </div>
-              </div>
-              <div style={{ marginLeft: '2rem', textAlign: 'right', minWidth: '150px' }}>
-                <div style={{ fontSize: '0.75rem', color: 'var(--text-secondary)', marginBottom: '1rem' }}>{new Date(r.createdAt).toLocaleString()}</div>
-                {r.status === 'pending' ? (
-                  <button onClick={() => resolveReclamation(r.id)} className="btn btn-primary" style={{ background: '#10b981', border: 'none', padding: '0.6rem 1.2rem', fontWeight: 'bold' }}>RÉSOUDRE</button>
-                ) : (
-                  <div style={{ color: '#10b981', fontWeight: '800', fontSize: '0.85rem', display: 'flex', alignItems: 'center', gap: '0.4rem', justifyContent: 'flex-end' }}>
-                    <CheckCircle size={16} /> RÉSOLU
+        <div className="fade-in admin-tab-panel">
+          <div className="admin-search">
+            <Search size={18} className="admin-search__icon" aria-hidden />
+            <input
+              type="search"
+              className="input-field admin-search__input"
+              placeholder="Recherche : motif, détail, utilisateur…"
+              value={reclamationSearch}
+              onChange={(e) => {
+                setReclamationSearch(e.target.value);
+                setReclamationPage(1);
+              }}
+            />
+          </div>
+          <div className="admin-reclamation-list">
+            {pagedReclamations.map((r) => (
+              <div key={r.id} className={`admin-reclamation-card admin-reclamation-card--${r.status === 'resolved' ? 'done' : 'open'}`}>
+                <div className="admin-reclamation-card__main">
+                  <div className="admin-reclamation-card__head">
+                    <span className="admin-reclamation-card__user">{r.user?.name}</span>
+                    <span className="admin-reclamation-card__id">#{r.id}</span>
                   </div>
-                )}
+                  <div className="admin-reclamation-card__reason">{r.reason}</div>
+                  <div className="admin-reclamation-card__desc">{r.description || 'Aucun détail complémentaire.'}</div>
+                </div>
+                <div className="admin-reclamation-card__side">
+                  <div className="admin-muted">{new Date(r.createdAt).toLocaleString()}</div>
+                  {r.status === 'pending' ? (
+                    <button type="button" onClick={() => resolveReclamation(r.id)} className="btn btn-primary admin-reclamation-card__btn">
+                      Résoudre
+                    </button>
+                  ) : (
+                    <div className="admin-reclamation-card__resolved">
+                      <CheckCircle size={16} /> Résolu
+                    </div>
+                  )}
+                </div>
               </div>
-            </div>
-          ))}
+            ))}
+          </div>
+          <AdminPagination
+            page={reclamationSafePage}
+            totalPages={reclamationTotalPages}
+            totalItems={filteredReclamations.length}
+            pageSize={PAGE_SIZE_RECLAMATIONS}
+            onPrev={() => setReclamationPage((p) => Math.max(1, p - 1))}
+            onNext={() => setReclamationPage((p) => Math.min(reclamationTotalPages, p + 1))}
+          />
           {reclamations.length === 0 && (
-            <div style={{ textAlign: 'center', padding: '5rem 2rem', color: 'var(--text-secondary)' }}>
-              <Activity size={48} style={{ opacity: 0.1, marginBottom: '1rem' }} />
-              <p>Aucune demande de support en cours.</p>
+            <div className="admin-empty admin-empty--lg">
+              <Activity size={48} className="admin-empty__icon" />
+              <p>Aucune demande de support.</p>
             </div>
           )}
+          {reclamations.length > 0 && filteredReclamations.length === 0 && (
+            <div className="admin-empty">Aucun résultat pour « {reclamationSearch} ».</div>
+          )}
+        </div>
+      )}
+      </div>
+
+      {userEditModalId !== null && (
+        <div className="admin-user-modal__backdrop" role="presentation" onClick={closeUserEditModal}>
+          <div className="admin-user-modal" role="dialog" aria-modal="true" aria-labelledby="admin-user-modal-title" onClick={(e) => e.stopPropagation()}>
+            <div className="admin-user-modal__header">
+              <h3 id="admin-user-modal-title">Modifier le profil utilisateur</h3>
+              <button type="button" className="admin-user-modal__close" onClick={closeUserEditModal} aria-label="Fermer">
+                <X size={22} />
+              </button>
+            </div>
+            <div className="admin-user-modal__body">
+              <p className="admin-user-modal__hint">Tous les champs sensibles sont modifiables ici ; l’adresse e-mail reste verrouillée pour l’intégrité du compte.</p>
+              <label className="admin-field-label">E-mail (lecture seule)</label>
+              <input className="input-field" type="email" value={editForm.email} readOnly title="Non modifiable" />
+              <label className="admin-field-label">Nom complet</label>
+              <input className="input-field" value={editForm.name} onChange={(e) => setEditForm({ ...editForm, name: e.target.value })} autoComplete="name" />
+              <label className="admin-field-label">Téléphone</label>
+              <input className="input-field" value={editForm.phone} onChange={(e) => setEditForm({ ...editForm, phone: e.target.value })} placeholder="+212 …" autoComplete="tel" />
+              <label className="admin-field-label">Rôle</label>
+              <select className="input-field" value={editForm.role} onChange={(e) => setEditForm({ ...editForm, role: e.target.value })}>
+                <option value="user">Utilisateur</option>
+                <option value="admin">Administrateur</option>
+              </select>
+              <label className="admin-field-label">Statut du compte</label>
+              <select className="input-field" value={editForm.status} onChange={(e) => setEditForm({ ...editForm, status: e.target.value })}>
+                <option value="active">Actif</option>
+                <option value="deactivated">Suspendu / désactivé</option>
+              </select>
+              <label className="admin-field-label">Nouveau mot de passe (optionnel)</label>
+              <input
+                className="input-field"
+                type="password"
+                value={editForm.password}
+                onChange={(e) => setEditForm({ ...editForm, password: e.target.value })}
+                placeholder="Laisser vide pour ne pas changer"
+                autoComplete="new-password"
+              />
+            </div>
+            <div className="admin-user-modal__footer">
+              <button type="button" className="btn btn-secondary" onClick={closeUserEditModal} disabled={actionLoading}>
+                Annuler
+              </button>
+              <button type="button" className="btn btn-primary" onClick={() => handleUpdateUser(userEditModalId)} disabled={actionLoading}>
+                {actionLoading ? '…' : 'Enregistrer'}
+              </button>
+            </div>
+          </div>
         </div>
       )}
 
@@ -602,6 +842,7 @@ const DashboardAdmin = () => {
         const row = makeCardRow(theme);
         const iconColor = plan === 'PREMIUM' ? theme.accent : theme.red;
         const med = selectedCard.user?.medicalRecords;
+        const icePhone = (med?.contactPhone && String(med.contactPhone).trim()) || (selectedCard.user?.phone && String(selectedCard.user.phone).trim()) || '';
         const isPremium = plan === 'PREMIUM';
 
         return (
@@ -733,6 +974,7 @@ const DashboardAdmin = () => {
                 <div style={{ display: cardFaceTab === 'recto' ? 'block' : 'none' }}>
                   <div ref={cardFrontRef} style={{ ...shellStyle, background: theme.paper }}>
                     <div
+                      className="admin-card-print-flex"
                       style={{
                         flex: 1,
                         display: 'flex',
@@ -865,6 +1107,24 @@ const DashboardAdmin = () => {
                     >
                       <span style={{ fontSize: '16px', fontWeight: 800, letterSpacing: '0.03em' }}>Scan in case of emergency</span>
                       <span style={{ fontSize: '14px', fontWeight: 700, opacity: 0.95 }}>Instant Access · Global Care</span>
+                      {icePhone ? (
+                        <a
+                          href={`tel:${icePhone.replace(/\s/g, '')}`}
+                          style={{
+                            fontSize: '18px',
+                            fontWeight: 800,
+                            letterSpacing: '0.04em',
+                            color: '#fff',
+                            textDecoration: 'none',
+                            marginTop: '4px',
+                            wordBreak: 'break-all'
+                          }}
+                        >
+                          ICE / Urgence : {icePhone}
+                        </a>
+                      ) : (
+                        <span style={{ fontSize: '13px', fontWeight: 600, opacity: 0.85 }}>ICE / Urgence : non renseigné</span>
+                      )}
                     </div>
                   </div>
                 </div>
@@ -962,8 +1222,8 @@ const DashboardAdmin = () => {
       })()}
       {/* TOAST SYSTEM */}
       <div className="toast-container">
-        {toasts.map(t => (
-          <Toast key={t.id} {...t} onClose={() => removeToast(t.id)} />
+        {toasts.map((toastItem) => (
+          <Toast key={toastItem.id} {...toastItem} onClose={() => removeToast(toastItem.id)} />
         ))}
       </div>
     </div>

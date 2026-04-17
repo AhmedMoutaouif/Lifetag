@@ -4,8 +4,12 @@ import { useTranslation } from 'react-i18next';
 import axios from 'axios';
 import { HeartPulse, ArrowRight, QrCode, Lock, Zap, Globe, CreditCard, Watch, Key, Activity, Star, CheckCircle, Send, Loader2 } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
+import { isValidEmail, isNonEmptyTrimmed } from '../utils/formValidation';
+import { API_BASE_URL } from '../config/apiBase';
 
-const API_BASE_URL = import.meta.env.VITE_API_URL || `${window.location.protocol}//${window.location.hostname}:5000`;
+/** Segment vectoriel répétable (ligne type monitoring / vitaux), ~400 unités de large. */
+const ECG_SEGMENT_D =
+  'M0,50 L28,50 L36,50 L42,20 L48,80 L54,32 L60,50 L400,50';
 
 const LandingPage = () => {
   const { t } = useTranslation();
@@ -28,8 +32,20 @@ const LandingPage = () => {
 
   const submitContact = async (e) => {
     e.preventDefault();
-    setContactLoading(true);
     setContactStatus(null);
+    if (!isNonEmptyTrimmed(contactForm.name, 2)) {
+      setContactStatus(t('validation.name_min'));
+      return;
+    }
+    if (!isValidEmail(contactForm.email)) {
+      setContactStatus(t('validation.email_invalid'));
+      return;
+    }
+    if (!isNonEmptyTrimmed(contactForm.message, 10)) {
+      setContactStatus(t('validation.message_min'));
+      return;
+    }
+    setContactLoading(true);
     try {
       await axios.post(`${API_BASE_URL}/api/contact`, {
         name: contactForm.name.trim(),
@@ -47,7 +63,59 @@ const LandingPage = () => {
   };
 
   return (
-    <div className="animate-fade-in">
+    <div className="landing-page animate-fade-in">
+      <div className="landing-page__ambient" aria-hidden="true">
+        <div className="landing-page__mesh" />
+        <div className="landing-page__orb landing-page__orb--a" />
+        <div className="landing-page__orb landing-page__orb--b" />
+        <div className="landing-page__orb landing-page__orb--c" />
+        <div className="landing-page__grid-noise" />
+        <div className="landing-page__scan" />
+        <div className="landing-page__ecg-layer landing-page__ecg-layer--top">
+          <svg className="landing-page__ecg-svg" viewBox="0 0 1200 120" preserveAspectRatio="none" xmlns="http://www.w3.org/2000/svg">
+            <defs>
+              <linearGradient id="lifetagEcgStroke" x1="0" y1="0" x2="1200" y2="0" gradientUnits="userSpaceOnUse">
+                <stop offset="0" stopColor="#f43f5e" stopOpacity="0.55" />
+                <stop offset="0.42" stopColor="#60a5fa" stopOpacity="0.4" />
+                <stop offset="1" stopColor="#a78bfa" stopOpacity="0.5" />
+              </linearGradient>
+            </defs>
+            <g transform="translate(0,28)">
+              <g className="landing-page__ecg-scroll">
+                <path fill="none" stroke="url(#lifetagEcgStroke)" strokeWidth="1.2" vectorEffect="nonScalingStroke" d={ECG_SEGMENT_D} />
+                <path fill="none" stroke="url(#lifetagEcgStroke)" strokeWidth="1.2" vectorEffect="nonScalingStroke" d={ECG_SEGMENT_D} transform="translate(400,0)" />
+                <path fill="none" stroke="url(#lifetagEcgStroke)" strokeWidth="1.2" vectorEffect="nonScalingStroke" d={ECG_SEGMENT_D} transform="translate(800,0)" />
+              </g>
+            </g>
+            <g transform="translate(0,92)" opacity="0.55">
+              <g className="landing-page__ecg-scroll landing-page__ecg-scroll--reverse">
+                <path fill="none" stroke="url(#lifetagEcgStroke)" strokeWidth="0.95" vectorEffect="nonScalingStroke" d={ECG_SEGMENT_D} />
+                <path fill="none" stroke="url(#lifetagEcgStroke)" strokeWidth="0.95" vectorEffect="nonScalingStroke" d={ECG_SEGMENT_D} transform="translate(400,0)" />
+                <path fill="none" stroke="url(#lifetagEcgStroke)" strokeWidth="0.95" vectorEffect="nonScalingStroke" d={ECG_SEGMENT_D} transform="translate(800,0)" />
+              </g>
+            </g>
+          </svg>
+        </div>
+        <div className="landing-page__ecg-layer landing-page__ecg-layer--bottom" aria-hidden="true">
+          <svg className="landing-page__ecg-svg landing-page__ecg-svg--flip" viewBox="0 0 1200 100" preserveAspectRatio="none" xmlns="http://www.w3.org/2000/svg">
+            <defs>
+              <linearGradient id="lifetagEcgStrokeB" x1="0" y1="0" x2="1200" y2="0" gradientUnits="userSpaceOnUse">
+                <stop offset="0" stopColor="#60a5fa" stopOpacity="0.35" />
+                <stop offset="0.5" stopColor="#f43f5e" stopOpacity="0.4" />
+                <stop offset="1" stopColor="#a78bfa" stopOpacity="0.35" />
+              </linearGradient>
+            </defs>
+            <g transform="translate(0,36)">
+              <g className="landing-page__ecg-scroll landing-page__ecg-scroll--slow">
+                <path fill="none" stroke="url(#lifetagEcgStrokeB)" strokeWidth="1" vectorEffect="nonScalingStroke" d={ECG_SEGMENT_D} />
+                <path fill="none" stroke="url(#lifetagEcgStrokeB)" strokeWidth="1" vectorEffect="nonScalingStroke" d={ECG_SEGMENT_D} transform="translate(400,0)" />
+                <path fill="none" stroke="url(#lifetagEcgStrokeB)" strokeWidth="1" vectorEffect="nonScalingStroke" d={ECG_SEGMENT_D} transform="translate(800,0)" />
+              </g>
+            </g>
+          </svg>
+        </div>
+      </div>
+      <div className="landing-page__main">
       <section className="hero-section">
         <div className="hero-content">
           <h1 className="hero-title fade-up delay-1">
@@ -77,6 +145,7 @@ const LandingPage = () => {
         </div>
 
         <div className="hero-visual fade-up delay-3">
+          <div className="hero-visual__card-wrap">
           <div className="card-mockup">
             <div className="card-decoration"></div>
             <HeartPulse color="var(--accent)" size={40} style={{ marginBottom: '2rem' }} />
@@ -86,6 +155,7 @@ const LandingPage = () => {
               <QrCode size={150} color="black" />
             </div>
             <p style={{ textAlign: 'center', marginTop: '1rem', color: 'var(--text-secondary)', fontSize: '0.8rem' }}>{t('home.scan_to_access')}</p>
+          </div>
           </div>
         </div>
       </section>
@@ -121,7 +191,7 @@ const LandingPage = () => {
         </div>
       </section>
 
-      <section style={{ padding: '8rem 10%', background: 'radial-gradient(circle at center, var(--bg-secondary), var(--bg-primary))', borderRadius: 'var(--radius)', margin: '4rem 0', border: '1px solid var(--glass-border)', boxShadow: '0 20px 80px rgba(0,0,0,0.15)' }}>
+      <section className="landing-products-band landing-page__lift-band" style={{ padding: '8rem 10%', background: 'radial-gradient(circle at center, var(--bg-secondary), var(--bg-primary))', borderRadius: 'var(--radius)', margin: '4rem 0', border: '1px solid var(--glass-border)', boxShadow: '0 20px 80px rgba(0,0,0,0.15)' }}>
         <h2 style={{ textAlign: 'center', fontSize: '3rem', marginBottom: '1.5rem', textTransform: 'none' }} className="text-gradient">{t('home.products.title')}</h2>
         <p style={{ textAlign: 'center', color: 'var(--text-secondary)', marginBottom: '5rem', fontSize: '1.2rem' }}>{t('home.products.subtitle')}</p>
         <div className="features-grid" style={{ gap: '3rem' }}>
@@ -160,19 +230,19 @@ const LandingPage = () => {
 
       <section id="how-it-works" style={{ padding: '6rem 0' }}>
         <h2 style={{ textAlign: 'center', fontSize: '2.5rem', marginBottom: '4rem' }} className="text-gradient">{t('home.how_it_works.title')}</h2>
-        <div className="features-grid" style={{ gridTemplateColumns: 'repeat(3, 1fr)', gap: '3rem' }}>
-          <div style={{ textAlign: 'center' }} className="fade-up">
-            <div style={{ width: '80px', height: '80px', margin: '0 auto 1.5rem', display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'var(--bg-tertiary)', borderRadius: '50%', fontSize: '2rem', fontWeight: 'bold', color: 'var(--accent)', border: '2px solid var(--accent)' }}>1</div>
+        <div className="features-grid landing-steps-grid" style={{ gap: '3rem' }}>
+          <div style={{ textAlign: 'center' }} className="fade-up landing-step-card">
+            <div className="landing-step-card__badge" style={{ width: '80px', height: '80px', margin: '0 auto 1.5rem', display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'var(--bg-tertiary)', borderRadius: '50%', fontSize: '2rem', fontWeight: 'bold', color: 'var(--accent)', border: '2px solid var(--accent)' }}>1</div>
             <h3>{t('home.how_it_works.step1')}</h3>
             <p style={{ color: 'var(--text-secondary)', marginTop: '1rem' }}>{t('home.how_it_works.step1_d')}</p>
           </div>
-          <div style={{ textAlign: 'center' }} className="fade-up delay-1">
-            <div style={{ width: '80px', height: '80px', margin: '0 auto 1.5rem', display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'var(--bg-tertiary)', borderRadius: '50%', fontSize: '2rem', fontWeight: 'bold', color: 'var(--accent)', border: '2px solid var(--accent)' }}>2</div>
+          <div style={{ textAlign: 'center' }} className="fade-up delay-1 landing-step-card">
+            <div className="landing-step-card__badge" style={{ width: '80px', height: '80px', margin: '0 auto 1.5rem', display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'var(--bg-tertiary)', borderRadius: '50%', fontSize: '2rem', fontWeight: 'bold', color: 'var(--accent)', border: '2px solid var(--accent)' }}>2</div>
             <h3>{t('home.how_it_works.step2')}</h3>
             <p style={{ color: 'var(--text-secondary)', marginTop: '1rem' }}>{t('home.how_it_works.step2_d')}</p>
           </div>
-          <div style={{ textAlign: 'center' }} className="fade-up delay-2">
-            <div style={{ width: '80px', height: '80px', margin: '0 auto 1.5rem', display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'var(--bg-tertiary)', borderRadius: '50%', fontSize: '2rem', fontWeight: 'bold', color: 'var(--accent)', border: '2px solid var(--accent)' }}>3</div>
+          <div style={{ textAlign: 'center' }} className="fade-up delay-2 landing-step-card">
+            <div className="landing-step-card__badge" style={{ width: '80px', height: '80px', margin: '0 auto 1.5rem', display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'var(--bg-tertiary)', borderRadius: '50%', fontSize: '2rem', fontWeight: 'bold', color: 'var(--accent)', border: '2px solid var(--accent)' }}>3</div>
             <h3>{t('home.how_it_works.step3')}</h3>
             <p style={{ color: 'var(--text-secondary)', marginTop: '1rem' }}>{t('home.how_it_works.step3_d')}</p>
           </div>
@@ -181,16 +251,16 @@ const LandingPage = () => {
 
       <section id="pricing" style={{ padding: '6rem 0', paddingBottom: '8rem' }}>
         <h2 style={{ textAlign: 'center', fontSize: '2.5rem', marginBottom: '4rem' }} className="text-gradient">{t('home.pricing.title')}</h2>
-        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '3rem', maxWidth: '900px', margin: '0 auto' }}>
+        <div className="pricing-grid">
           {/* Card FREE */}
-          <div className="glass-panel fade-up" style={{ padding: '3rem 2rem', textAlign: 'center', borderTop: '4px solid var(--text-secondary)' }}>
+          <div className="glass-panel landing-glass-hover fade-up" style={{ padding: '3rem 2rem', textAlign: 'center', borderTop: '4px solid var(--text-secondary)' }}>
             <Activity size={48} color="var(--text-secondary)" style={{ margin: '0 auto 1rem' }} />
             <h3 style={{ fontSize: '2rem', marginBottom: '1rem' }}>{t('home.pricing.free')}</h3>
             <p style={{ color: 'var(--text-secondary)', marginBottom: '2rem' }}>{t('home.pricing.free_d')}</p>
             <Link to="/login" className="btn btn-secondary" style={{ width: '100%' }}>{t('home.pricing.choose')}</Link>
           </div>
           {/* Card PREMIUM */}
-          <div className="glass-panel fade-up delay-1" style={{ padding: '3rem 2rem', textAlign: 'center', borderTop: '6px solid var(--accent)', transform: 'scale(1.05)', boxShadow: '0 30px 60px rgba(0,0,0,0.2)', background: 'var(--bg-secondary)' }}>
+          <div className="glass-panel landing-glass-hover fade-up delay-1 pricing-card--premium" style={{ padding: '3rem 2rem', textAlign: 'center', borderTop: '6px solid var(--accent)', boxShadow: '0 30px 60px rgba(0,0,0,0.2)', background: 'var(--bg-secondary)' }}>
             <Star size={48} color="var(--accent)" fill="var(--accent)" style={{ margin: '0 auto 1rem' }} />
             <h3 style={{ fontSize: '2rem', marginBottom: '1rem', color: 'var(--text-primary)' }}>{t('home.pricing.premium')}</h3>
             <p style={{ fontSize: '2rem', fontWeight: 800, color: 'var(--accent)', marginBottom: '0.6rem' }}>{t('home.pricing.premium_price')}</p>
@@ -202,7 +272,7 @@ const LandingPage = () => {
 
       {/* SECTION: À qui s'adresse LifeTag ? */}
       <section style={{ padding: '6rem 0' }}>
-        <div className="glass-panel" style={{ border: '1px solid var(--accent-glow)' }}>
+        <div className="glass-panel landing-glass-hover" style={{ border: '1px solid var(--accent-glow)' }}>
           <h2 style={{ fontSize: '2.5rem', marginBottom: '3rem', textAlign: 'center' }} className="text-gradient">{t('home.audience.title')}</h2>
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', gap: '2rem' }}>
             {t('home.audience.items', { returnObjects: true }).map((item, idx) => (
@@ -217,21 +287,20 @@ const LandingPage = () => {
         </div>
       </section>
 
-      <section id="contact" style={{ padding: '6rem 5%', maxWidth: '720px', margin: '0 auto' }}>
-        <div className="glass-panel" style={{ marginBottom: '2rem', padding: '1.5rem' }}>
-          <h3 style={{ marginBottom: '0.8rem' }}>Confidentialite des donnees</h3>
+      <section id="contact" className="landing-contact-section" style={{ padding: '6rem 5%', maxWidth: '720px', margin: '0 auto' }}>
+        <div className="glass-panel landing-glass-hover" style={{ marginBottom: '2rem', padding: '1.5rem' }}>
+          <h3 style={{ marginBottom: '0.8rem' }}>{t('home.privacy.title')}</h3>
           <p style={{ color: 'var(--text-secondary)', marginBottom: '0.9rem' }}>
-            Vos informations de sante sont traitees avec des controles d&apos;acces, de validation et de journalisation.
-            Vous pouvez consulter le detail de nos engagements de confidentialite a tout moment.
+            {t('home.privacy.text')}
           </p>
           <Link to="/privacy-policy" className="btn btn-secondary" style={{ width: 'fit-content' }}>
-            Lire la politique de confidentialite
+            {t('home.privacy.cta')}
           </Link>
         </div>
 
         <h2 style={{ textAlign: 'center', fontSize: '2.5rem', marginBottom: '0.75rem' }} className="text-gradient">{t('home.contact.title')}</h2>
         <p style={{ textAlign: 'center', color: 'var(--text-secondary)', marginBottom: '2.5rem', lineHeight: 1.6 }}>{t('home.contact.subtitle')}</p>
-        <form className="glass-panel" onSubmit={submitContact} style={{ padding: '2rem', display: 'grid', gap: '1.25rem' }}>
+        <form className="glass-panel landing-glass-hover" onSubmit={submitContact} style={{ padding: '2rem', display: 'grid', gap: '1.25rem' }}>
           <div>
             <label style={{ display: 'block', marginBottom: '0.5rem', fontWeight: 600, fontSize: '0.9rem' }}>{t('home.contact.name')}</label>
             <input
@@ -294,6 +363,7 @@ const LandingPage = () => {
       <footer style={{ borderTop: '1px solid rgba(255,255,255,0.05)', padding: '3rem 0', textAlign: 'center', color: 'var(--text-secondary)' }}>
         <p>{t('home.footer')}</p>
       </footer>
+      </div>
     </div>
   );
 };

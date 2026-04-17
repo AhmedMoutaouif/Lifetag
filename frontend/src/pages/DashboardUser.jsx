@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Link, useLocation } from 'react-router-dom';
 import { LayoutDashboard, User, Lock, Save, ShieldAlert, CheckCircle, Activity, Star, Watch, Zap, AlertTriangle, HeartPulse, Key } from 'lucide-react';
@@ -7,9 +7,12 @@ import { QRCodeCanvas } from 'qrcode.react';
 import { useAuth } from '../context/AuthContext';
 import Toast from '../components/Toast';
 import { sanitizePhone, sanitizeText, maskSensitive } from '../utils/security';
+import { isNonEmptyTrimmed, isValidEmergencyPhone } from '../utils/formValidation';
+import { calculateAgeFromBirthDate } from '../utils/ageFromBirth';
+import { API_BASE_URL } from '../config/apiBase';
 
+const PASSWORD_MIN_LEN = 8;
 const COMMON_DISEASES = ["Diabète", "Asthme", "Hypertension", "Épilepsie", "Allergies alimentaires", "Cardiopathie", "Cancer"];
-const API_BASE_URL = import.meta.env.VITE_API_URL || `${window.location.protocol}//${window.location.hostname}:5000`;
 const PUBLIC_APP_URL = import.meta.env.VITE_PUBLIC_APP_URL || window.location.origin;
 
 /** Aligné sur backend/server.js PLAN_LIMITS — utilisé si l’API n’a pas encore renvoyé `limits`. */
@@ -22,7 +25,7 @@ const getPlanLimitsDisplay = (limitsState, effectivePlanType) => {
 
 const DashboardUser = () => {
   const { t } = useTranslation();
-  const { user, token, setUser } = useAuth();
+  const { user, setUser } = useAuth();
   const location = useLocation();
   const currentPath = location.pathname;
   const isVitalsPage = currentPath === '/dashboard/vitals';
@@ -47,7 +50,6 @@ const DashboardUser = () => {
   const [medicaments, setMedicaments] = useState('');
   const [bloodGroup, setBloodGroup] = useState('O+');
   const [sex, setSex] = useState('');
-  const [age, setAge] = useState('');
   const [restingBloodPressure, setRestingBloodPressure] = useState('');
   const [cholesterol, setCholesterol] = useState('');
   const [maxHeartRate, setMaxHeartRate] = useState('');
@@ -83,6 +85,8 @@ const DashboardUser = () => {
   const [privacyConsent, setPrivacyConsent] = useState(false);
   const [maskOverviewData, setMaskOverviewData] = useState(true);
 
+  const ageFromBirth = useMemo(() => calculateAgeFromBirthDate(birthDate), [birthDate]);
+
   useEffect(() => {
     setIsEditing(isVitalsPage);
     setIsProfile(isProfilePage);
@@ -90,19 +94,32 @@ const DashboardUser = () => {
   }, [isVitalsPage, isProfilePage, isSupportPage]);
 
   useEffect(() => {
+    if (!user?.id) return undefined;
     // 1. Fetch user data (especially email)
-    axios.get(`${API_BASE_URL}/api/user/profile`, { headers: { Authorization: `Bearer ${token}` } })
+    axios.get(`${API_BASE_URL}/api/user/profile`)
       .then(res => {
         if (res.data.user) {
           const u = res.data.user;
-          setUser(u);
+          setUser((prev) => {
+            if (!prev) return u;
+            if (
+              prev.id === u.id &&
+              prev.name === u.name &&
+              prev.email === u.email &&
+              prev.phone === u.phone &&
+              prev.role === u.role
+            ) {
+              return prev;
+            }
+            return u;
+          });
           setProfileForm({ name: u.name, phone: u.phone || '' });
         }
       })
       .catch(err => console.error("Erreur chargement profil utilisateur", err));
 
     // 2. Fetch medical data
-    axios.get(`${API_BASE_URL}/api/medical`, { headers: { Authorization: `Bearer ${token}` } })
+    axios.get(`${API_BASE_URL}/api/medical`)
       .then(res => {
         setEffectivePlanType(res.data.effectivePlanType || 'FREE');
         setPlanLimits(res.data.limits || null);
@@ -115,7 +132,6 @@ const DashboardUser = () => {
           setMedicaments(rec.medicaments || '');
           setBloodGroup(rec.bloodGroup || 'O+');
           setSex(rec.sex || '');
-          setAge(rec.age || '');
           setRestingBloodPressure(rec.restingBloodPressure || '');
           setCholesterol(rec.cholesterol || '');
           setMaxHeartRate(rec.maxHeartRate || '');
@@ -145,25 +161,24 @@ const DashboardUser = () => {
         }
       })
       .catch(err => console.error("Erreur chargement profil médical", err));
-  }, [token, setUser]);
+  }, [user?.id, setUser]);
 
   useEffect(() => {
     const confirmStripePayment = async () => {
       const params = new URLSearchParams(location.search);
       const paymentStatus = params.get('payment');
       const sessionId = params.get('session_id');
-      if (paymentStatus !== 'success' || !sessionId || !token) return;
+      if (paymentStatus !== 'success' || !sessionId || !user) return;
 
       try {
         const res = await axios.post(
           `${API_BASE_URL}/api/payment/confirm`,
           { sessionId },
-          { headers: { Authorization: `Bearer ${token}` } }
         );
         setSubscription(res.data.subscription);
         setEffectivePlanType('PREMIUM');
         try {
-          const med = await axios.get(`${API_BASE_URL}/api/medical`, { headers: { Authorization: `Bearer ${token}` } });
+          const med = await axios.get(`${API_BASE_URL}/api/medical`);
           if (med.data?.limits) setPlanLimits(med.data.limits);
           if (med.data?.effectivePlanType) setEffectivePlanType(med.data.effectivePlanType);
         } catch (_e) { /* ignore */ }
@@ -175,7 +190,7 @@ const DashboardUser = () => {
     };
 
     confirmStripePayment();
-  }, [location.search, token]);
+  }, [location.search, user]);
 
   const handleDiseaseToggle = (d) => {
     setSelectedDiseases(prev =>
@@ -191,6 +206,14 @@ const DashboardUser = () => {
         showToast("Veuillez confirmer la clause de confidentialite avant enregistrement.", "error");
         return;
       }
+      if (!isNonEmptyTrimmed(contactName, 2)) {
+        showToast(t('validation.ice_name'), 'error');
+        return;
+      }
+      if (!isValidEmergencyPhone(contactPhone)) {
+        showToast(t('validation.ice_phone'), 'error');
+        return;
+      }
       const safeAllergies = sanitizeText(allergies, limits.allergies);
       const safeMedicaments = sanitizeText(medicaments, limits.medicaments);
       const safeOtherDiseases = sanitizeText(otherDiseases, limits.maladies);
@@ -204,14 +227,14 @@ const DashboardUser = () => {
       }
       const res = await axios.post(`${API_BASE_URL}/api/medical`, {
         allergies: safeAllergies, maladies: maladiesJSON, medicaments: safeMedicaments, bloodGroup,
-        sex: sanitizeText(sex, 20), age: sanitizeText(age, 8), restingBloodPressure: sanitizeText(restingBloodPressure, 40),
+        sex: sanitizeText(sex, 20), age: sanitizeText(ageFromBirth, 8), restingBloodPressure: sanitizeText(restingBloodPressure, 40),
         cholesterol: sanitizeText(cholesterol, 40), maxHeartRate: sanitizeText(maxHeartRate, 40),
         oxygenSaturation: sanitizeText(oxygenSaturation, 40), glucoseLevel: sanitizeText(glucoseLevel, 40),
         bodyTemperature: sanitizeText(bodyTemperature, 40),
         contactName: safeContactName, contactPhone: safeContactPhone, contactRelation: sanitizeText(contactRelation, 30),
         birthDate, weight, height, organDonor,
         additionalNotes: effectivePlanType === 'PREMIUM' ? safeAdditionalNotes : (medicalData?.additionalNotes ?? '')
-      }, { headers: { Authorization: `Bearer ${token}` } });
+      });
 
       if (res.data && res.data.record) {
         setMedicalData(res.data.record);
@@ -236,22 +259,31 @@ const DashboardUser = () => {
   const removeToast = (id) => setToasts(prev => prev.filter(t => t.id !== id));
 
   useEffect(() => {
-    if (token) {
-      axios.get(`${API_BASE_URL}/api/reclamations`, { headers: { Authorization: `Bearer ${token}` } })
+    if (user) {
+      axios.get(`${API_BASE_URL}/api/reclamations`)
         .then(res => setMyReclamations(res.data))
         .catch(err => console.error(err));
     }
-  }, [token]);
+  }, [user]);
 
   const handleUpdateProfile = async (e) => {
     e.preventDefault();
+    if (!isNonEmptyTrimmed(profileForm.name, 2)) {
+      showToast(t('validation.name_min'), 'error');
+      return;
+    }
+    const phoneTrim = (profileForm.phone || '').trim();
+    if (phoneTrim && !isValidEmergencyPhone(phoneTrim)) {
+      showToast(t('validation.phone_digits'), 'error');
+      return;
+    }
     setUpdating(true);
     try {
       const safeProfile = {
         name: sanitizeText(profileForm.name, 120),
         phone: sanitizePhone(profileForm.phone, 20)
       };
-      const res = await axios.patch(`${API_BASE_URL}/api/user/profile`, safeProfile, { headers: { Authorization: `Bearer ${token}` } });
+      const res = await axios.patch(`${API_BASE_URL}/api/user/profile`, safeProfile);
       const updatedUser = { ...user, ...res.data.user };
       setUser(updatedUser);
       localStorage.setItem('lifetag_user', JSON.stringify(updatedUser));
@@ -265,9 +297,13 @@ const DashboardUser = () => {
 
   const handleChangePassword = async (e) => {
     e.preventDefault();
+    if (newPass.length < PASSWORD_MIN_LEN) {
+      showToast(t('auth.password_min_hint'), 'error');
+      return;
+    }
     setUpdating(true);
     try {
-      await axios.post(`${API_BASE_URL}/api/user/password`, { oldPassword: oldPass, newPassword: newPass }, { headers: { Authorization: `Bearer ${token}` } });
+      await axios.post(`${API_BASE_URL}/api/user/password`, { oldPassword: oldPass, newPassword: newPass });
       showToast("Mot de passe sécurisé !");
       setOldPass(''); setNewPass('');
     } catch (err) {
@@ -277,27 +313,32 @@ const DashboardUser = () => {
 
   const submitReclamation = async (e) => {
     e.preventDefault();
+    const descTrim = reclamationDesc.trim();
+    if (descTrim.length < 10) {
+      showToast(t('validation.reclamation_min'), 'error');
+      return;
+    }
     setUpdating(true);
     try {
       await axios.post(`${API_BASE_URL}/api/reclamation`, {
         reason: sanitizeText(reclamationReason, 120),
-        description: sanitizeText(reclamationDesc, 1000)
-      }, { headers: { Authorization: `Bearer ${token}` } });
+        description: sanitizeText(reclamationDesc, 2000)
+      });
       showToast("Réclamation envoyée avec succès !");
       setReclamationDesc('');
       setIsReclaiming(false);
-      const res = await axios.get(`${API_BASE_URL}/api/reclamations`, { headers: { Authorization: `Bearer ${token}` } });
+      const res = await axios.get(`${API_BASE_URL}/api/reclamations`);
       setMyReclamations(res.data);
-    } catch (_err) { showToast("Échec de l'envoi", "error"); }
+    } catch (err) {
+      showToast(err.response?.data?.message || "Échec de l'envoi", "error");
+    }
     finally { setUpdating(false); }
   };
 
   const handleGenerateQr = async () => {
     setLoadingQr(true);
     try {
-      const res = await axios.post(`${API_BASE_URL}/api/card/generate`, {}, {
-        headers: { Authorization: `Bearer ${token}` }
-      });
+      const res = await axios.post(`${API_BASE_URL}/api/card/generate`, {});
       setCard(res.data.card);
       showToast("QR généré avec succès !");
     } catch (err) {
@@ -310,11 +351,15 @@ const DashboardUser = () => {
   const limits = getPlanLimitsDisplay(planLimits, effectivePlanType);
   const maladiesJsonLen = JSON.stringify({ selected: selectedDiseases, other: otherDiseases }).length;
   const maladiesOverLimit = maladiesJsonLen > limits.maladies;
+  const cardEmergencyPhone =
+    (medicalData?.contactPhone && String(medicalData.contactPhone).trim()) ||
+    (user?.phone && String(user.phone).trim()) ||
+    '';
 
   return (
-    <div className="glass-panel fade-up">
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '2rem' }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: '1rem' }}>
+    <div className="glass-panel fade-up user-dashboard__shell">
+      <div className="user-dashboard__header">
+        <div className="user-dashboard__header-title">
           <LayoutDashboard size={36} color="var(--accent)" />
           <div>
             <h2 style={{ marginBottom: 0 }}>{t('dashboard.title')}</h2>
@@ -322,7 +367,7 @@ const DashboardUser = () => {
           </div>
         </div>
         {isOverviewPage && (
-          <Link to="/dashboard/profile" className="btn btn-secondary">Mon Profil</Link>
+          <Link to="/dashboard/profile" className="btn btn-secondary user-dashboard__header-cta">Mon Profil</Link>
         )}
       </div>
 
@@ -358,7 +403,8 @@ const DashboardUser = () => {
               </div>
               <div>
                 <label style={{ display: 'block', fontSize: '0.85rem', marginBottom: '0.4rem', color: 'var(--text-secondary)' }}>Nouveau Mot de passe</label>
-                <input type="password" value={newPass} onChange={e => setNewPass(e.target.value)} className="input-field" style={{ marginBottom: 0 }} required />
+                <input type="password" value={newPass} onChange={e => setNewPass(e.target.value)} className="input-field" style={{ marginBottom: 0 }} minLength={8} autoComplete="new-password" required />
+                <p style={{ fontSize: '0.75rem', color: 'var(--text-secondary)', marginTop: '0.35rem', marginBottom: 0 }}>{t('register.password_hint')}</p>
               </div>
               <button type="submit" className="btn btn-secondary" disabled={updating} style={{ borderColor: 'rgba(255,255,255,0.1)', color: 'white' }}>
                 {updating ? <div className="spinner" /> : <ShieldAlert size={18} />} Change Security Key
@@ -367,7 +413,7 @@ const DashboardUser = () => {
           </form>
         </div>
       ) : isEditing ? (
-        <form onSubmit={handleSave} className="glass-panel" style={{ padding: '2rem', marginTop: '1rem' }}>
+        <form onSubmit={handleSave} className="user-dashboard__vitals-inner">
           <h3 style={{ borderBottom: '1px solid rgba(255,255,255,0.1)', paddingBottom: '0.5rem', marginBottom: '1rem' }}>
             {t('dashboard.my_data')}
           </h3>
@@ -382,10 +428,10 @@ const DashboardUser = () => {
             {effectivePlanType === 'PREMIUM' ? t('dashboard.vitals_premium_identity') : t('dashboard.vitals_free_identity')}
           </div>
 
-          <div className="vitals-two-cols" style={{ marginBottom: '1.5rem' }}>
+          <div className="vitals-two-cols vitals-grid--tight" style={{ marginBottom: '1.5rem' }}>
             <div>
               <label style={{ display: 'block', marginBottom: '0.5rem', color: 'var(--text-secondary)' }}>{t('emergency.birthDate')}</label>
-              <input type="date" value={birthDate} onChange={e => setBirthDate(e.target.value)} className="input-field" />
+              <input type="date" value={birthDate} onChange={e => setBirthDate(e.target.value)} className="input-field input-field--date" />
             </div>
             <div>
               <label style={{ display: 'block', marginBottom: '0.5rem', color: 'var(--text-secondary)' }}>{t('emergency.blood')}</label>
@@ -406,8 +452,21 @@ const DashboardUser = () => {
               </select>
             </div>
             <div>
-              <label style={{ display: 'block', marginBottom: '0.5rem', color: 'var(--text-secondary)' }}>Âge</label>
-              <input type="number" min="0" max="130" value={age} onChange={e => setAge(e.target.value)} className="input-field" placeholder="35" />
+              <label style={{ display: 'block', marginBottom: '0.5rem', color: 'var(--text-secondary)' }}>{t('emergency.age')}</label>
+              <div
+                className="input-field"
+                style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  minHeight: '2.75rem',
+                  opacity: ageFromBirth ? 1 : 0.75,
+                  cursor: 'default',
+                }}
+                aria-live="polite"
+              >
+                {ageFromBirth ? `${ageFromBirth} ${t('emergency.age_years')}` : '—'}
+              </div>
+              <p style={{ margin: '0.35rem 0 0', fontSize: '0.75rem', color: 'var(--text-secondary)' }}>{t('emergency.age_auto_hint')}</p>
             </div>
             <div>
               <label style={{ display: 'block', marginBottom: '0.5rem', color: 'var(--text-secondary)' }}>Poids (kg)</label>
@@ -453,7 +512,8 @@ const DashboardUser = () => {
             </div>
             <div>
               <label style={{ display: 'block', marginBottom: '0.5rem', color: 'var(--text-secondary)' }}>Téléphone</label>
-              <input type="tel" value={contactPhone} onChange={e => setContactPhone(e.target.value)} className="input-field" placeholder="Ex: 06 12 34 56 78" required />
+              <input type="tel" value={contactPhone} onChange={e => setContactPhone(e.target.value)} className="input-field" placeholder="Ex: 06 12 34 56 78" required minLength={8} />
+              <p style={{ fontSize: '0.75rem', color: 'var(--text-secondary)', marginTop: '0.35rem', marginBottom: 0 }}>{t('validation.phone_digits')}</p>
             </div>
             <div>
               <label style={{ display: 'block', marginBottom: '0.5rem', color: 'var(--text-secondary)' }}>Relation</label>
@@ -590,8 +650,8 @@ const DashboardUser = () => {
           </div>
         </form>
       ) : (
-        <div style={{ padding: '2rem', background: 'rgba(255,255,255,0.02)', borderRadius: 'var(--radius)', border: '1px solid rgba(255,255,255,0.05)' }}>
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '2rem' }}>
+        <div className="user-dashboard__overview-inner">
+          <div className="user-dashboard__welcome-row">
             <div>
               <h3 style={{ marginBottom: '0.5rem' }}>{t('dashboard.welcome')}, {user.name}</h3>
               <div style={{ display: 'flex', gap: '1rem' }}>
@@ -645,10 +705,10 @@ const DashboardUser = () => {
           )}
 
           {isReclaiming && (
-            <div className="glass-panel fade-in" style={{ marginTop: '2.5rem', padding: '2rem', borderTop: '4px solid var(--accent)' }}>
+            <div className="user-dashboard__section fade-in">
               <h3 className="section-title"><AlertTriangle size={20} color="var(--accent)" /> Assistance & Réclamations</h3>
               <form onSubmit={submitReclamation} style={{ display: 'grid', gap: '1.5rem' }}>
-                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', gap: '1.5rem' }}>
+                <div className="user-dashboard__support-grid">
                   <div>
                     <label style={{ display: 'block', marginBottom: '0.5rem', color: 'var(--text-secondary)', fontSize: '0.85rem' }}>Objet de votre message</label>
                     <select value={reclamationReason} onChange={e => setReclamationReason(e.target.value)} className="input-field" style={{ marginBottom: 0 }}>
@@ -662,7 +722,7 @@ const DashboardUser = () => {
                 </div>
                 <div>
                   <label style={{ display: 'block', marginBottom: '0.5rem', color: 'var(--text-secondary)', fontSize: '0.85rem' }}>Détails</label>
-                  <textarea value={reclamationDesc} onChange={e => setReclamationDesc(e.target.value)} className="input-field" rows="4" placeholder="Décrivez votre besoin précisément..." required style={{ marginBottom: 0 }} />
+                  <textarea value={reclamationDesc} onChange={e => setReclamationDesc(e.target.value)} className="input-field" rows="4" placeholder="Décrivez votre besoin précisément..." required minLength={10} maxLength={2000} style={{ marginBottom: 0 }} />
                 </div>
                 <button type="submit" className="btn btn-primary" disabled={updating} style={{ width: 'fit-content' }}>
                   {updating ? <div className="spinner" /> : "Transmettre ma demande"}
@@ -672,12 +732,12 @@ const DashboardUser = () => {
           )}
 
           {isProfile && (
-            <div className="glass-panel fade-in" style={{ marginTop: '2.5rem', padding: '2.5rem', borderTop: '4px solid var(--accent)' }}>
+            <div className="user-dashboard__section user-dashboard__section--profile fade-in">
               <h3 className="section-title"><User size={24} color="var(--accent)" /> Paramètres de mon Compte</h3>
               <p style={{ color: 'var(--text-secondary)', marginBottom: '2rem', fontSize: '0.9rem' }}>Modifiez vos informations personnelles et coordonnées.</p>
 
               <form onSubmit={handleUpdateProfile} style={{ display: 'grid', gap: '2rem' }}>
-                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', gap: '2rem' }}>
+                <div className="user-dashboard__profile-grid">
                   <div className="form-group">
                     <label style={{ display: 'block', marginBottom: '0.6rem', color: 'var(--text-secondary)', fontSize: '0.85rem', fontWeight: 'bold' }}>IDENTIFIANT COMPTE (Email)</label>
                     <input className="input-field" type="email" value={user.email} disabled style={{ color: 'var(--text-secondary)', cursor: 'not-allowed', background: 'rgba(0,0,0,0.2)', border: '1px solid rgba(255,255,255,0.05)' }} title="L'email ne peut être changé." />
@@ -690,11 +750,12 @@ const DashboardUser = () => {
 
                   <div className="form-group">
                     <label style={{ display: 'block', marginBottom: '0.6rem', color: 'var(--text-secondary)', fontSize: '0.85rem', fontWeight: 'bold' }}>TÉLÉPHONE DE CONTACT</label>
-                    <input className="input-field" type="text" value={profileForm.phone} onChange={e => setProfileForm({ ...profileForm, phone: e.target.value })} placeholder="+33 6 ..." />
+                    <input className="input-field" type="tel" value={profileForm.phone} onChange={e => setProfileForm({ ...profileForm, phone: e.target.value })} placeholder="+33 6 ..." maxLength={20} />
+                    <p style={{ fontSize: '0.75rem', color: 'var(--text-secondary)', marginTop: '0.35rem', marginBottom: 0 }}>{t('validation.phone_digits')}</p>
                   </div>
                 </div>
 
-                <div style={{ display: 'flex', gap: '1.5rem', marginTop: '1rem', borderTop: '1px solid rgba(255,255,255,0.05)', paddingTop: '2.5rem' }}>
+                <div className="user-dashboard__actions">
                   <button type="submit" className="btn btn-primary" disabled={updating} style={{ minWidth: '220px' }}>
                     {updating ? <div className="spinner" /> : <Save size={18} />} VALIDER LES MODIFICATIONS
                   </button>
@@ -706,14 +767,15 @@ const DashboardUser = () => {
                 <h4 style={{ marginBottom: '1.5rem', fontSize: '0.85rem', fontWeight: 'bold', color: 'var(--text-secondary)', display: 'flex', alignItems: 'center', gap: '0.5rem', letterSpacing: '1px' }}>
                   <Key size={16} color="var(--accent)" /> SÉCURITÉ DU COMPTE — Changer le mot de passe
                 </h4>
-                <form onSubmit={handleChangePassword} style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(260px, 1fr))', gap: '1.5rem', alignItems: 'end' }}>
+                <form onSubmit={handleChangePassword} className="user-dashboard__password-grid">
                   <div>
                     <label style={{ display: 'block', marginBottom: '0.5rem', color: 'var(--text-secondary)', fontSize: '0.8rem', fontWeight: 'bold' }}>ANCIEN MOT DE PASSE</label>
                     <input className="input-field" type="password" value={oldPass} onChange={e => setOldPass(e.target.value)} required placeholder="••••••••" style={{ marginBottom: 0 }} />
                   </div>
                   <div>
                     <label style={{ display: 'block', marginBottom: '0.5rem', color: 'var(--text-secondary)', fontSize: '0.8rem', fontWeight: 'bold' }}>NOUVEAU MOT DE PASSE</label>
-                    <input className="input-field" type="password" value={newPass} onChange={e => setNewPass(e.target.value)} required placeholder="••••••••" style={{ marginBottom: 0 }} />
+                    <input className="input-field" type="password" value={newPass} onChange={e => setNewPass(e.target.value)} required minLength={8} autoComplete="new-password" placeholder="••••••••" style={{ marginBottom: 0 }} />
+                    <p style={{ fontSize: '0.75rem', color: 'var(--text-secondary)', marginTop: '0.35rem', marginBottom: 0 }}>{t('register.password_hint')}</p>
                   </div>
                   <button type="submit" className="btn btn-primary" disabled={updating} style={{ background: 'linear-gradient(135deg,#6366f1,#4f46e5)', minWidth: '180px' }}>
                     {updating ? <div className="spinner" /> : <Key size={16} />} CHANGER
@@ -724,15 +786,33 @@ const DashboardUser = () => {
           )}
 
           {isOverviewPage && (
-          <div style={{ marginTop: '3rem', display: 'grid', gridTemplateColumns: 'minmax(300px, 0.6fr) 1fr', gap: '2rem', alignItems: 'center' }}>
-            <div className="card-mockup" style={{ height: '200px', padding: '1.5rem' }}>
+          <div className="dashboard-overview-grid">
+            <div className="card-mockup card-mockup--dashboard" style={{ height: '200px', padding: '1.5rem' }}>
               <div className="card-decoration"></div>
               <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', fontWeight: 'bold' }}>
                 <HeartPulse color="var(--accent)" size={24} />
                 <span style={{ fontSize: '1.2rem', letterSpacing: '1px' }}>LifeTag</span>
               </div>
-              <div style={{ marginTop: 'auto' }}>
+              <div style={{ marginTop: 'auto', paddingRight: '5.5rem' }}>
                 <div style={{ fontSize: '1rem', letterSpacing: '1.5px', fontWeight: '600', color: 'var(--text-primary)' }}>{user.name.toUpperCase()}</div>
+                {cardEmergencyPhone ? (
+                  <a
+                    href={`tel:${cardEmergencyPhone.replace(/\s/g, '')}`}
+                    style={{
+                      display: 'block',
+                      marginTop: '0.35rem',
+                      fontSize: '0.78rem',
+                      fontWeight: 700,
+                      color: 'var(--accent)',
+                      textDecoration: 'none',
+                      wordBreak: 'break-all'
+                    }}
+                  >
+                    ICE : {cardEmergencyPhone}
+                  </a>
+                ) : (
+                  <div style={{ marginTop: '0.35rem', fontSize: '0.75rem', color: 'var(--text-secondary)' }}>ICE : —</div>
+                )}
                 <div style={{ position: 'absolute', bottom: '1.5rem', right: '1.5rem', background: 'white', padding: '6px', borderRadius: '8px', boxShadow: '0 4px 10px rgba(0,0,0,0.2)' }}>
                   <QRCodeCanvas value={card ? `${PUBLIC_APP_URL}/emergency/${card.qrCode}` : "LT-WAITING"} size={60} />
                 </div>
@@ -751,7 +831,7 @@ const DashboardUser = () => {
                       <button className="btn btn-primary" onClick={async () => {
                         setLoadingPayment(true);
                         try {
-                          const res = await axios.post(`${API_BASE_URL}/api/payment/checkout-session`, {}, { headers: { Authorization: `Bearer ${token}` } });
+                          const res = await axios.post(`${API_BASE_URL}/api/payment/checkout-session`, {});
                           if (res.data?.url) {
                             window.location.href = res.data.url;
                             return;
@@ -768,7 +848,7 @@ const DashboardUser = () => {
                   )}
                 </div>
               ) : (
-                <div style={{ background: 'rgba(245, 158, 11, 0.1)', padding: '1.5rem', borderRadius: '12px', border: '1px solid #f59e0b' }}>
+                <div className="premium-member-callout" style={{ background: 'rgba(245, 158, 11, 0.1)', padding: '1.5rem', borderRadius: '12px', border: '1px solid #f59e0b' }}>
                   <div style={{ color: '#f59e0b', fontWeight: 'bold' }}>⭐ MEMBRE PREMIUM ACTIF</div>
                   <p style={{ fontSize: '0.8rem', marginTop: '0.5rem' }}>Accès illimité aux fonctions d'urgence et supports physiques prioritaires.</p>
                 </div>
@@ -781,7 +861,7 @@ const DashboardUser = () => {
                   </h4>
                   <div style={{ display: 'grid', gap: '1rem' }}>
                     {myReclamations.map(r => (
-                      <div key={r.id} className="glass-panel" style={{ padding: '1.2rem', display: 'flex', justifyContent: 'space-between', alignItems: 'center', background: 'rgba(255,255,255,0.01)', border: '1px solid rgba(255,255,255,0.03)', marginBottom: '1rem' }}>
+                      <div key={r.id} className="glass-panel reclamation-history-row" style={{ padding: '1.2rem', display: 'flex', justifyContent: 'space-between', alignItems: 'center', background: 'rgba(255,255,255,0.01)', border: '1px solid rgba(255,255,255,0.03)', marginBottom: '1rem' }}>
                         <div style={{ flex: 1 }}>
                           <div style={{ fontWeight: '800', fontSize: '0.95rem', color: 'var(--text-primary)' }}>{r.reason}</div>
                           <div style={{ fontSize: '0.85rem', color: 'var(--text-secondary)', marginTop: '0.3rem', lineHeight: '1.4' }}>{r.description}</div>

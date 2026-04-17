@@ -1,13 +1,33 @@
 {
     "logout": "Logout",
+    "auth": {
+        "verifying_session": "Verifying your session…",
+        "password_min_hint": "Password must be at least 8 characters.",
+        "session_expired": "Your session has expired (8 hours). Please sign in again."
+    },
+    "validation": {
+        "email_invalid": "Please enter a valid email address.",
+        "name_min": "Name must be at least 2 characters.",
+        "message_min": "Message must be at least 10 characters.",
+        "phone_digits": "Enter a valid phone number (at least 8 digits).",
+        "ice_name": "Enter the full name of your emergency contact.",
+        "ice_phone": "Enter a valid emergency number (at least 8 digits).",
+        "reclamation_min": "Please describe your request in at least 10 characters."
+    },
     "nav": {
         "home": "Home",
+        "privacy": "Privacy",
         "contact": "Contact",
         "login": "Login",
+        "logout_confirm": "Are you sure you want to log out?",
         "dashboard": "Dashboard",
         "profile": "Profile",
         "features": "Features",
-        "support": "Support"
+        "support": "Support",
+        "vitals": "Vital data",
+        "open_menu": "Open menu",
+        "close_menu": "Close menu",
+        "cancel": "Cancel"
     },
     "home": {
         "badge": "Fast & Secure Medical Identification",
@@ -74,6 +94,11 @@
             "success": "Message sent. We will get back to you as soon as possible.",
             "cta_hero": "Contact us"
         },
+        "privacy": {
+            "title": "Data privacy",
+            "text": "Your health information is processed with access control, validation, and audit logging safeguards. You can review our privacy commitments at any time.",
+            "cta": "Read privacy policy"
+        },
         "audience": {
             "title": "Who is LifeTag for?",
             "items": [
@@ -92,16 +117,25 @@
         "password": "Password",
         "submit": "Login to LifeTag",
         "no_account": "Don't have an account?",
-        "create_account": "Create one now"
+        "create_account": "Create one now",
+        "connecting": "Signing in…",
+        "welcome": "Welcome back!",
+        "error_invalid": "Sign-in failed",
+        "error_generic": "Invalid email or password."
     },
     "register": {
         "title": "Create your LifeTag",
         "name": "Full Name",
         "email": "Email Address",
         "password": "Password",
+        "password_hint": "At least 8 characters.",
         "submit": "Register",
         "has_account": "Already have an account?",
-        "login_now": "Login here"
+        "login_now": "Login here",
+        "creating": "Creating your account…",
+        "success_title": "Account created",
+        "success_text": "You can sign in now.",
+        "error_title": "Registration failed"
     },
     "dashboard": {
         "title": "Your LifeTag Dashboard",
@@ -131,6 +165,9 @@
         "contact_relation": "Relationship",
         "contact_phone": "Phone",
         "birthDate": "Date of Birth",
+        "age": "Age (years)",
+        "age_years": "years",
+        "age_auto_hint": "Calculated automatically from your date of birth.",
         "weight": "Weight (kg)",
         "height": "Height (cm)",
         "identity": "Patient Identity",
@@ -161,6 +198,36 @@
         "contact_mark_read": "Mark read",
         "contact_empty": "No messages yet."
     },
+    "privacy": {
+        "title": "Privacy Policy",
+        "updated": "Last updated: April 2026",
+        "sections": [
+            {
+                "heading": "1. Data we collect",
+                "body": "LifeTag collects only the data needed to run the service: account information, medical information you choose to enter, and minimal technical data for security and maintenance."
+            },
+            {
+                "heading": "2. Purpose of processing",
+                "body": "Data is used to provide emergency medical profiles, manage user accounts, secure access, and improve service quality."
+            },
+            {
+                "heading": "3. Confidentiality and security",
+                "body": "Access is protected by authentication. Sensitive operations (login, profile updates, medical data) are subject to application controls. We apply validation, rate limiting, and role-based access where appropriate."
+            },
+            {
+                "heading": "4. Data retention",
+                "body": "Data is kept while your account is active or as required by applicable law. You may request deletion of your data via support."
+            },
+            {
+                "heading": "5. Sharing of data",
+                "body": "We do not sell personal data. Data is only shared with technical processors strictly necessary for hosting, database, and payments, with appropriate safeguards."
+            },
+            {
+                "heading": "6. Your rights",
+                "body": "You may request access, correction, or deletion of your data. Contact: support@getlifetag.com"
+            }
+        ]
+    },
     "footer": {
         "brand": "LifeTag",
         "brand_sub": "Global",
@@ -178,6 +245,7 @@
         "link_how": "How it works",
         "link_login": "Login",
         "link_register": "Create account",
+        "link_privacy": "Privacy policy",
         "rights": "© {{year}} LifeTag Global. All rights reserved."
     }
 }

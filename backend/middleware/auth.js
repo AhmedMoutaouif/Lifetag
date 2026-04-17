@@ -1,9 +1,10 @@
 const jwt = require("jsonwebtoken");
 const prisma = require("../prismaClient");
+const { readTokenFromRequest } = require("../utils/authCookie");
 
 /** JWT + DB: le rôle et le statut viennent toujours de la base (pas du payload JWT ni du localStorage). */
 const authMiddleware = async (req, res, next) => {
-  const token = req.header("Authorization")?.split(" ")[1];
+  const token = readTokenFromRequest(req);
 
   if (!token) {
     return res.status(401).json({ message: "No token, authorization denied" });

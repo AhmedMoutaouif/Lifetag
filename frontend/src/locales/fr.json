@@ -1,15 +1,35 @@
 {
     "logout": "Déconnexion",
+    "auth": {
+        "verifying_session": "Vérification de votre session…",
+        "password_min_hint": "Le mot de passe doit contenir au moins 8 caractères.",
+        "session_expired": "Votre session a expiré (8 heures). Veuillez vous reconnecter."
+    },
+    "validation": {
+        "email_invalid": "Veuillez saisir une adresse e-mail valide.",
+        "name_min": "Le nom doit contenir au moins 2 caractères.",
+        "message_min": "Le message doit contenir au moins 10 caractères.",
+        "phone_digits": "Saisissez un numéro valide (au moins 8 chiffres).",
+        "ice_name": "Indiquez le nom complet du contact d'urgence.",
+        "ice_phone": "Indiquez un numéro d'urgence valide (au moins 8 chiffres).",
+        "reclamation_min": "Décrivez votre demande en au moins 10 caractères."
+    },
         "nav": {
         "home": "Accueil",
+        "privacy": "Confidentialité",
         "contact": "Contact",
+        "logout_confirm": "Voulez-vous vraiment vous déconnecter ?",
         "dashboard": "Tableau de bord",
         "plans": "Offres",
         "logout": "Déconnexion",
         "login": "Connexion",
         "profile": "Profil",
         "features": "Fonctionnalités",
-        "support": "Support"
+        "support": "Support",
+        "vitals": "Données vitales",
+        "open_menu": "Ouvrir le menu",
+        "close_menu": "Fermer le menu",
+        "cancel": "Annuler"
     },
     "plans": {
         "title": "Choisissez votre protection",
@@ -103,6 +123,11 @@
             "success": "Message envoyé. Nous vous répondrons dès que possible.",
             "cta_hero": "Nous contacter"
         },
+        "privacy": {
+            "title": "Confidentialité des données",
+            "text": "Vos informations de santé sont traitées avec des contrôles d’accès, de validation et de journalisation. Vous pouvez consulter le détail de nos engagements de confidentialité à tout moment.",
+            "cta": "Lire la politique de confidentialité"
+        },
         "audience": {
             "title": "À qui s’adresse LifeTag ?",
             "items": [
@@ -121,16 +146,25 @@
         "password": "Mot de passe",
         "submit": "Se connecter",
         "no_account": "Pas encore de compte ?",
-        "create_account": "S'inscrire maintenant"
+        "create_account": "S'inscrire maintenant",
+        "connecting": "Connexion en cours…",
+        "welcome": "Bon retour !",
+        "error_invalid": "Échec de la connexion",
+        "error_generic": "E-mail ou mot de passe incorrect."
     },
     "register": {
         "title": "Créez votre LifeTag",
         "name": "Nom Complet",
         "email": "Adresse Email",
         "password": "Mot de passe",
+        "password_hint": "Au moins 8 caractères.",
         "submit": "S'inscrire",
         "has_account": "Vous avez déjà un compte ?",
-        "login_now": "Connectez-vous ici"
+        "login_now": "Connectez-vous ici",
+        "creating": "Création du compte…",
+        "success_title": "Compte créé",
+        "success_text": "Vous pouvez vous connecter.",
+        "error_title": "Inscription impossible"
     },
     "dashboard": {
         "title": "Votre Tableau LifeTag",
@@ -160,6 +194,9 @@
         "contact_relation": "Lien de parenté",
         "contact_phone": "Téléphone",
         "birthDate": "Date de Naissance",
+        "age": "Âge (ans)",
+        "age_years": "ans",
+        "age_auto_hint": "Calculé automatiquement à partir de la date de naissance.",
         "weight": "Poids (kg)",
         "height": "Taille (cm)",
         "identity": "Identité Patient",
@@ -190,6 +227,36 @@
         "contact_mark_read": "Marquer lu",
         "contact_empty": "Aucun message pour l’instant."
     },
+    "privacy": {
+        "title": "Politique de confidentialité",
+        "updated": "Dernière mise à jour : avril 2026",
+        "sections": [
+            {
+                "heading": "1. Données collectées",
+                "body": "LifeTag collecte uniquement les données nécessaires au fonctionnement du service : informations de compte, données médicales saisies volontairement, et données techniques minimales pour la sécurité et la maintenance."
+            },
+            {
+                "heading": "2. Finalité du traitement",
+                "body": "Les données sont utilisées pour permettre l'accès aux profils médicaux d'urgence, la gestion des comptes utilisateurs, la sécurisation des connexions et l'amélioration de la qualité du service."
+            },
+            {
+                "heading": "3. Confidentialité et sécurité",
+                "body": "Les accès sont protégés par authentification. Les opérations sensibles (connexion, mise à jour de profil, données vitales) font l'objet de contrôles applicatifs. Nous appliquons validation, limitation de requêtes et cloisonnement des accès selon les rôles."
+            },
+            {
+                "heading": "4. Conservation des données",
+                "body": "Les données sont conservées tant que le compte est actif ou selon les obligations légales applicables. L'utilisateur peut demander la suppression de ses données via le support."
+            },
+            {
+                "heading": "5. Partage des données",
+                "body": "Aucune vente de données personnelles n'est effectuée. Les données ne sont partagées qu'avec les sous-traitants techniques indispensables au service (hébergement, base de données, paiement), avec des mesures de protection appropriées."
+            },
+            {
+                "heading": "6. Droits des utilisateurs",
+                "body": "Vous pouvez demander l'accès, la correction ou la suppression de vos données. Pour toute demande : support@getlifetag.com"
+            }
+        ]
+    },
     "footer": {
         "brand": "LifeTag",
         "brand_sub": "Global",
@@ -207,6 +274,7 @@
         "link_how": "Comment ça marche ?",
         "link_login": "Connexion",
         "link_register": "Créer un compte",
+        "link_privacy": "Politique de confidentialité",
         "rights": "© {{year}} LifeTag Global. Tous droits réservés."
     }
 }
