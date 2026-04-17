@@ -13,6 +13,7 @@ RUN npm ci
 COPY server.js ./
 COPY prismaClient.js ./
 COPY middleware ./middleware
+COPY utils ./utils
 COPY seed-admin.js ./
 
 RUN npx prisma generate
